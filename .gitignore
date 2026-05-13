@@ -3,7 +3,6 @@
 dist
 node_modules
 
-
 # Logs
 logs
 *.log
@@ -43,3 +42,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Local tests
+test
