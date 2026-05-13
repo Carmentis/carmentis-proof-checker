@@ -28,7 +28,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --dangerously-allow-all-builds
 
       - name: Build Vue project
         run: pnpm run build
