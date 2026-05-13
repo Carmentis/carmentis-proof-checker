@@ -20,10 +20,11 @@ export class SdJwt {
         let issuedOn = "-";
         let validFrom = "-";
         let validUntil = "-";
+        let valid = false;
 
         if (claims.iss !== undefined) {
             issuer = claims.iss;
-            await this.verify(issuer);
+            valid = await this.verify(issuer);
         }
         if (claims.iat !== undefined) {
             issuedOn = SdJwt.timestampToDate(Number(claims.iat));
@@ -39,6 +40,7 @@ export class SdJwt {
                 issuer, issuedOn, validFrom, validUntil,
             },
             claims,
+            valid,
         };
     }
 
@@ -47,31 +49,25 @@ export class SdJwt {
         if (issuerJwt === undefined) {
             throw new Error("Invalid DID format");
         }
-        console.log("issuerJwt", issuerJwt);
         const jwk = JSON.parse(
             Base64.decodeString(issuerJwt, Base64.URL)
         );
-        console.log("jwk", jwk);
         const key = (await importJWK(jwk, 'Ed25519', {
             extractable: true,
         })) as CryptoKey;
-        console.log("key", key);
 
         const sdjwtVerifier = new SDJwtVcInstance({
             hasher: digest,
             verifier: async (data, signature) => {
-                console.log(`data:${data} signature:${signature}`);
-                const binData = Base64.decodeBinary(data, Base64.URL);
-                console.log("data", binData);
+                //const binData = Base64.decodeBinary(data, Base64.URL);
+                const binData = (new TextEncoder()).encode(data);
                 const binSig = Base64.decodeBinary(signature, Base64.URL);
-                console.log("sig", binSig);
                 const verified = await subtle.verify(
                     { name: "Ed25519" },
                     key,
                     binSig,
                     binData,
                 );
-                console.log("verified", verified);
                 return verified;
             }
         });

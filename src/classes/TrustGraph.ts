@@ -84,9 +84,9 @@ export class TrustGraph {
 
     private async addSdJwt(vc: VerifiableCredential) {
         const id = this.nextNodeId();
-        const valid = true;
         const sdJwt = new SdJwt(vc.data);
         const data = await sdJwt.decode();
+        const valid = data.valid;
 
         for (const key of Object.keys(data.claims)) {
             if (typeof data.claims[key] === "string") {

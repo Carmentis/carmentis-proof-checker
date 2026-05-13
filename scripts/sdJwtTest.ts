@@ -40,7 +40,7 @@ async function testJwt() {
         hasher: digest,
         verifier: async (data, signature) => {
             console.log(`data:${data} signature:${signature}`);
-            const binData = Buffer.from(data, "base64url");
+            const binData = Buffer.from(data);
             console.log("data", binData);
             const binSig = Buffer.from(signature, "base64url");
             console.log("sig", binSig);
