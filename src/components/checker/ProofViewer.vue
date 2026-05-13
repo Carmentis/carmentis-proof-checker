@@ -1,6 +1,6 @@
 <template>
     <div v-if="loading" class="flex flex-col items-center justify-center py-12">
-        <ProgressSpinner />
+        <ProgressSpinner/>
         <p class="text-lg text-gray-700 dark:text-gray-300 mt-4">Verifying proof...</p>
     </div>
 
@@ -75,20 +75,26 @@
             </div>
         </div>
 
-        <ProofRecordViewer v-if="records" :records="records" />
+        <div class="flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Graph of Trust</h2>
+        </div>
+
+        <TrustGraphViewer :vbId="appLedgerId" :records="records"/>
+        <ProofRecordViewer v-if="records" :records="records"/>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import {ref, onMounted} from 'vue'
 import {
     ProofDocument,
     Hash,
     ProviderFactory,
     type ImportedProof,
-} from '@cmts-dev/carmentis-sdk/client'
+} from '@cmts-dev/carmentis-sdk-core'
 import ProgressSpinner from 'primevue/progressspinner'
 import ProofRecordViewer from './ProofRecordViewer.vue'
+import TrustGraphViewer from './TrustGraphViewer.vue'
 
 const props = defineProps<{
     proof: ProofDocument
@@ -116,40 +122,40 @@ onMounted(async () => {
     try {
         const provider = ProviderFactory.createInMemoryProviderWithExternalProvider(
             props.nodeEndpoint,
-        )
+        );
 
-        title.value = props.proof.getTitle()
-        author.value = props.proof.getAuthor()
-        exportedAt.value = props.proof.getDate().toLocaleString()
+        title.value = props.proof.getTitle();
+        author.value = props.proof.getAuthor();
+        exportedAt.value = props.proof.getDate().toLocaleString();
 
-        const proofDocumentVBs = props.proof.getVirtualBlockchains()
+        const proofDocumentVBs = props.proof.getVirtualBlockchains();
         if (proofDocumentVBs.length !== 1) {
             throw new Error(
                 'Proof document contains multiple virtual blockchains. Only one virtual blockchain is supported.',
-            )
+            );
         }
 
-        const proofDocumentVB = proofDocumentVBs[0]!
-        const vbId = proofDocumentVB.getIdentifier()
-        const appLedgerIdHash = Hash.fromHex(vbId)
-        const appLedgerVb = await provider.loadApplicationLedgerVirtualBlockchain(appLedgerIdHash)
-        const importedProofs = await appLedgerVb.importProof(props.proof.getObject())
+        const proofDocumentVB = proofDocumentVBs[0]!;
+        const vbId = proofDocumentVB.getIdentifier();
+        const appLedgerIdHash = Hash.fromHex(vbId);
+        const appLedgerVb = await provider.loadApplicationLedgerVirtualBlockchain(appLedgerIdHash);
+        const importedProofs = await appLedgerVb.importProof(props.proof.getObject());
 
-        appLedgerId.value = vbId
-        records.value = importedProofs
+        appLedgerId.value = vbId;
+        records.value = importedProofs;
 
         verificationResult.value = {
             appLedgerId: vbId,
             records: importedProofs,
         }
     } catch (error) {
-        console.error('Proof verification error:', error)
+        console.error('Proof verification error:', error);
         errorMessage.value =
             error instanceof Error
                 ? error.message
-                : 'Unable to verify the proof. The proof might be invalid or corrupted.'
+                : 'Unable to verify the proof. The proof might be invalid or corrupted.';
     } finally {
-        loading.value = false
+        loading.value = false;
     }
 })
 </script>

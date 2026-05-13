@@ -1,0 +1,12 @@
+{
+  credentialSubject: { name: 'Old Nordmann', id: 'did:example:subjectY' },
+  issuer: { id: 'did:key:z6MkpM5WyzeEbagMbcZvjs6fNd6RRtgikKCTEBKidJExG7hp' },
+  type: [ 'VerifiableCredential' ],
+  evidence: { ts: 12 },
+  '@context': [ 'https://www.w3.org/2018/credentials/v1' ],
+  issuanceDate: '2026-04-20T13:42:15.000Z',
+  proof: {
+    type: 'JwtProof2020',
+    jwt: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVDcmVkZW50aWFsIl0sImNyZWRlbnRpYWxTdWJqZWN0Ijp7Im5hbWUiOiJPbGQgTm9yZG1hbm4ifSwiZXZpZGVuY2UiOnsidHMiOjEyfX0sInN1YiI6ImRpZDpleGFtcGxlOnN1YmplY3RZIiwibmJmIjoxNzc2NjkyNTM1LCJpc3MiOiJkaWQ6a2V5Ono2TWtwTTVXeXplRWJhZ01iY1p2anM2Zk5kNlJSdGdpa0tDVEVCS2lkSkV4RzdocCJ9.zJmb_US3qfSx_przhr1J9lu3JfVxjM185yoedtzdwGq4jzlWuBOuKr2xONHxCOe4sYD3fFYTUbG5_q1xTRiCCA'
+  }
+}

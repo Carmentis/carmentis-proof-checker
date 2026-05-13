@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ProofDocument } from '@cmts-dev/carmentis-sdk/client'
+import { ProofDocument } from '@cmts-dev/carmentis-sdk-core'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import { useStorageStore } from '../../stores/storage'

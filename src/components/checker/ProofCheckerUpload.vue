@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ProofDocument } from '@cmts-dev/carmentis-sdk/client'
+import { ProofDocument } from '@cmts-dev/carmentis-sdk-core'
 import Message from 'primevue/message'
 
 const emit = defineEmits<{

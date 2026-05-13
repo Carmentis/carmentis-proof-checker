@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { JsonData } from '@cmts-dev/carmentis-sdk/client'
+import type { JsonData } from '@cmts-dev/carmentis-sdk-core'
 
 const props = defineProps<{
     data: JsonData

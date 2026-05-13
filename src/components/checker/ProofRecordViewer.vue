@@ -12,7 +12,7 @@
                 <div v-for="(record, index) in records" :key="index" class="relative pl-16">
                     <!-- Timeline dot -->
                     <div
-                        class="absolute left-4 top-0 transform -translate-x-1/2 w-5 h-5 rounded-full bg-blue-500 border-4 border-blue-100 dark:border-blue-900 z-10"
+                        class="absolute left-4 top-0 w-5 h-5 rounded-full bg-blue-500 border-4 border-blue-100 dark:border-blue-900 z-10"
                     ></div>
 
                     <!-- Content card -->
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { type ImportedProof } from '@cmts-dev/carmentis-sdk/client'
+import { type ImportedProof } from '@cmts-dev/carmentis-sdk-core'
 import BlockViewer from './BlockViewer.vue'
 
 defineProps<{
