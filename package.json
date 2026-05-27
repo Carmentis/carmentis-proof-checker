@@ -12,7 +12,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
-    "@cmts-dev/carmentis-sdk-core": "^1.2.5",
+    "@cmts-dev/carmentis-sdk-core": "^1.2.9",
     "@primevue/themes": "^4.5.4",
     "@sd-jwt/crypto-browser": "^0.19.0",
     "@sd-jwt/crypto-nodejs": "^0.19.0",
