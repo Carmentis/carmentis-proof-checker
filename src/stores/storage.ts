@@ -17,8 +17,8 @@ export const useStorageStore = defineStore('storage', () => {
         {
             id: 'devnet',
             name: 'Devnet',
-//          nodeEndpoint: 'https://node1.server1.devnet.carmentis.io',
-            nodeEndpoint: 'http://carmentis.me:26657',
+            nodeEndpoint: 'https://node1.server1.devnet.carmentis.io',
+            //nodeEndpoint: 'http://carmentis.me:26657',
         },
     ])
 
