@@ -10,15 +10,19 @@ interface Organization {
 export const useStorageStore = defineStore('storage', () => {
     const organizations = ref<Organization[]>([
         {
+            id: 'devnet',
+            name: 'Devnet',
+            nodeEndpoint: 'https://node2.server2.devnet.carmentis.io',
+        },
+        {
             id: 'testnet',
             name: 'Testnet',
             nodeEndpoint: 'https://ares.testnet.carmentis.io',
         },
         {
-            id: 'devnet',
-            name: 'Devnet',
-            nodeEndpoint: 'https://node1.server1.devnet.carmentis.io',
-            //nodeEndpoint: 'http://carmentis.me:26657',
+            id: 'mainnet',
+            name: 'Mainnet',
+            nodeEndpoint: 'https://mercurius.carmentis.io',
         },
     ])
 
