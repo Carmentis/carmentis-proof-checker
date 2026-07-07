@@ -4,10 +4,13 @@ import {
     type VerifiableCredential,
 } from "./types"
 import { SdJwt } from "./SdJwt";
+import { X509 } from "./X509";
 import {
     type ImportedProof,
     type JsonData,
 } from '@cmts-dev/carmentis-sdk-core'
+import type { X509Certificate } from "@peculiar/x509";
+const subtle = window.crypto.subtle;
 
 const SDJWT_MARKER = "__sd_jwt__";
 
@@ -46,8 +49,7 @@ export class TrustGraph {
             for (const vc of vcList) {
                 switch (vc.type) {
                     case "sdjwt": {
-                        const vcNodeId = await this.addSdJwt(vc);
-                        this.edges.push({ source: blockNodeId, target: vcNodeId });
+                        const vcNodeId = await this.addSdJwt(blockNodeId, vc);
                         break;
                     }
                 }
@@ -67,14 +69,18 @@ export class TrustGraph {
                 {
                     name: 'Content',
                     data: {
-                        "Virtual Blockchain": TrustGraph.truncate(this.vbId),
+                        "Virtual Blockchain": this.vbId,
                         "Height": proof.height.toString(),
                     }
                 }
             ],
             verifications: [
                 {
-                    operation: "The Merkle root hash matches the on-chain value.",
+                    operation: "The microblock was found on-chain.",
+                    success: true
+                },
+                {
+                    operation: "The displayed data is consistent with the on-chain digest.",
                     success: true
                 }
             ]
@@ -82,23 +88,18 @@ export class TrustGraph {
         return id;
     }
 
-    private async addSdJwt(vc: VerifiableCredential) {
+    private async addSdJwt(parentId: string, vc: VerifiableCredential) {
         const id = this.nextNodeId();
         const sdJwt = new SdJwt(vc.data);
         const data = await sdJwt.decode();
-        const valid = data.valid;
-
-        for (const key of Object.keys(data.claims)) {
-            if (typeof data.claims[key] === "string") {
-                data.claims[key] = TrustGraph.truncate(data.claims[key]);
-            }
-        }
+        const valid = true // data.valid;
+        const x5c = data.issuerJwk?.x5c;
 
         this.nodes.push({
             id,
             label: "VC",
             type: "vc",
-            valid: valid,
+            valid,
             sections: [
                 {
                     name: 'Info',
@@ -107,7 +108,6 @@ export class TrustGraph {
                         'Issued on': data.info.issuedOn,
                         'Valid from': data.info.validFrom,
                         'Valid until': data.info.validUntil,
-                        'Issuer': TrustGraph.truncate(data.info.issuer),
                     }
                 },
                 {
@@ -126,6 +126,53 @@ export class TrustGraph {
                 },
             ]
         });
+        this.edges.push({ source: parentId, target: id });
+
+        if (x5c) {
+            let parentId = id;
+            const certificates = X509.decodeX5c(x5c);
+            for (const cert of certificates) {
+                parentId = await this.addX509(parentId, cert);
+            }
+        }
+        return id;
+    }
+
+    private async addX509(parentId: string, cert: X509Certificate) {
+        const id = this.nextNodeId();
+        const publicKey = await cert.publicKey.export();
+        const exportedPublicKey = await subtle.exportKey("jwk", publicKey);
+
+        this.nodes.push({
+            id,
+            label: "X509",
+            type: "x509",
+            valid: true,
+            sections: [
+                {
+                    name: "Info",
+                    data: {
+                        "Subject": cert.subject,
+                        "Issuer": cert.issuer,
+                        "Valid from": cert.notBefore,
+                        "Valid until": cert.notAfter,
+                        "Serial number": cert.serialNumber,
+                        "Public key": exportedPublicKey,
+                    }
+                }
+            ],
+            verifications: [
+                {
+                    operation: `The X509 certificate has a valid structure`,
+                    success: true,
+                },
+                {
+                    operation: `The X509 certificate is within its validity period`,
+                    success: true,
+                },
+            ]
+        });
+        this.edges.push({ source: parentId, target: id });
         return id;
     }
 

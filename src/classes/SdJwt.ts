@@ -17,53 +17,62 @@ export class SdJwt {
         });
         const claims = await sdJwt.getClaims(this.jwt) as { [key: string]: string };
         let issuer = "-";
-        let issuedOn = "-";
-        let validFrom = "-";
-        let validUntil = "-";
+        let issuedOn: string | Date = "-";
+        let validFrom: string | Date = "-";
+        let validUntil: string | Date = "-";
+        let issuerJwk = null;
         let valid = false;
 
         if (claims.iss !== undefined) {
             issuer = claims.iss;
             valid = await this.verify(issuer);
+            issuerJwk = this.extractJwk(issuer);
         }
         if (claims.iat !== undefined) {
-            issuedOn = SdJwt.timestampToDate(Number(claims.iat));
+            issuedOn = new Date(Number(claims.iat) * 1000);
         }
         if (claims.nbf !== undefined) {
-            validFrom = SdJwt.timestampToDate(Number(claims.nbf));
+            validFrom = new Date(Number(claims.nbf) * 1000);
         }
         if (claims.exp !== undefined) {
-            validUntil = SdJwt.timestampToDate(Number(claims.exp));
+            validUntil = new Date(Number(claims.exp) * 1000);
         }
         return {
             info: {
-                issuer, issuedOn, validFrom, validUntil,
+                issuedOn, validFrom, validUntil,
             },
             claims,
+            issuerJwk,
             valid,
         };
     }
 
-    async verify(issuer: string) {
-        const issuerJwt = issuer.split(":")[2];
+    extractJwk(issuer: string) {
+        const parts = issuer.split(":");
+        const issuerJwt = parts[2];
         if (issuerJwt === undefined) {
             throw new Error("Invalid DID format");
         }
         const jwk = JSON.parse(
             Base64.decodeString(issuerJwt, Base64.URL)
         );
-        const key = (await importJWK(jwk, 'Ed25519', {
+        return jwk;
+    }
+
+    async verify(issuer: string) {
+        const jwk = this.extractJwk(issuer);
+        const crv = jwk.crv;
+        const key = (await importJWK(jwk, crv, {
             extractable: true,
         })) as CryptoKey;
 
         const sdjwtVerifier = new SDJwtVcInstance({
             hasher: digest,
             verifier: async (data, signature) => {
-                //const binData = Base64.decodeBinary(data, Base64.URL);
                 const binData = (new TextEncoder()).encode(data);
                 const binSig = Base64.decodeBinary(signature, Base64.URL);
                 const verified = await subtle.verify(
-                    { name: "Ed25519" },
+                    { name: crv },
                     key,
                     binSig,
                     binData,
@@ -76,6 +85,7 @@ export class SdJwt {
             await sdjwtVerifier.verify(this.jwt)
         }
         catch (error) {
+            console.error("sig verification failed", error);
             verified = false;
         }
         return verified;

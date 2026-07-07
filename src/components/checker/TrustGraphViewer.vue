@@ -74,7 +74,7 @@
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
         @click.self="closeModal"
     >
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-xl w-full">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-3xl w-full max-h-[90vh] flex flex-col">
             <div class="flex items-start gap-3 mb-4">
                 <div v-html="modalContent.svg"></div>
                 <div>
@@ -94,22 +94,18 @@
                     </div>
                 </div>
             </div>
-            <template v-for="section in modalContent.sections">
-                <h3>{{ section.name }}</h3>
-                <div class="grid grid-cols-[auto_auto_1fr] gap-x-2 mb-4">
-                    <template v-for="(value, key) in section.data" :key="key">
-                        <span class="text-gray-500">{{ key }}</span>
-                        <span>:</span>
-                        <span>{{ value }}</span>
-                    </template>
-                </div>
-            </template>
+            <div class="flex-1 overflow-y-auto">
+                <template v-for="section in modalContent.sections">
+                    <h2 class="text-lg mt-3 mb-2">{{ section.name }}</h2>
+                    <BlockViewer :data="section.data" :initial-path="[]" />
+                </template>
+            </div>
             <div>
                 <button
                     @click="toggleVerificationDetails"
                     class="w-full flex items-center justify-between text-left font-medium"
                 >
-                    <span>What has been verified?</span>
+                    <span class="text-lg mt-3 mb-2">What has been verified?</span>
                     <span class="transition-transform" :class="{ 'rotate-90': showVerificationDetails }">›</span>
                 </button>
                 <div v-show="showVerificationDetails" class="px-4 pb-4 text-gray-600 dark:text-gray-300">
@@ -148,6 +144,7 @@ import {
     type Block,
     type Connection,
 } from "@/classes/types"
+import BlockViewer from './BlockViewer.vue'
 import { TrustGraphDiagram } from "@/classes/TrustGraphDiagram.ts"
 import { TrustGraph } from "@/classes/TrustGraph.ts"
 

@@ -115,8 +115,9 @@ const isDate = (value: any): boolean => {
 const canNavigate = (value: any): boolean => {
     const isArray = Array.isArray(value)
     const isObject = typeof value === 'object' && value !== null
+    const isDate = value instanceof Date;
 
-    if (!isArray && isObject) {
+    if (!isArray && !isDate && isObject) {
         return true
     }
 

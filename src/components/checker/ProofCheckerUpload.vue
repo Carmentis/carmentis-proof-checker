@@ -59,11 +59,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ProofDocument } from '@cmts-dev/carmentis-sdk-core'
+import { AppLedgerProofWrapper } from '@cmts-dev/carmentis-sdk-core'
 import Message from 'primevue/message'
 
 const emit = defineEmits<{
-    upload: [proof: ProofDocument]
+    upload: [proof: AppLedgerProofWrapper]
 }>()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -88,7 +88,7 @@ const processFile = (file?: File) => {
         reader.onload = (e) => {
             try {
                 const content = JSON.parse(e.target?.result as string)
-                const proofDocument = ProofDocument.fromObject(content)
+                const proofDocument = AppLedgerProofWrapper.fromObject(content)
                 emit('upload', proofDocument)
             } catch (err) {
                 console.error(err)

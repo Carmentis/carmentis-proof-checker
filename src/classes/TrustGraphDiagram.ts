@@ -80,16 +80,7 @@ export class TrustGraphDiagram {
             });
             validChain &&= node.valid;
         });
-        /*
-                console.log("blocks", blocks);
-                const stratify = graphStratify();
-                const dag = stratify(blocks);
-                console.log("dag before", dag);
-                const layout = sugiyama();
-                layout(dag);
-                console.log("block", blocks);
-                console.log("dag after", dag);
-        */
+
         const grf = new dagre.graphlib.Graph();
         grf.setGraph({ rankdir: "LR", nodesep: NODESEP, ranksep: RANKSEP });
         grf.setDefaultEdgeLabel(() => ({}));
@@ -103,10 +94,6 @@ export class TrustGraphDiagram {
         dagre.layout(grf, layout.decross(decrossOpt()).coord(coordQuad()));
 
         const graphConfig = grf.graph();
-
-        grf.edges().forEach((e) => {
-            console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(grf.edge(e.v, e.w)));
-        });
 
         blocks.forEach((node, ndx) => {
             const pos = grf.node(node.id);

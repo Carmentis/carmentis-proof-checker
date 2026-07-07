@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ProofDocument } from '@cmts-dev/carmentis-sdk-core'
+import { AppLedgerProofWrapper } from '@cmts-dev/carmentis-sdk-core'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import { useStorageStore } from '../../stores/storage'
@@ -73,7 +73,7 @@ const store = useStorageStore()
 const { isDark, toggle } = useDarkMode()
 
 const nodeEndpoint = ref(store.organizations[0]?.nodeEndpoint ?? '')
-const proof = ref<ProofDocument | undefined>()
+const proof = ref<AppLedgerProofWrapper | undefined>()
 
 // Si le nœud sélectionné disparaît du store, basculer sur le premier disponible
 watch(store.organizations, (orgs) => {
@@ -82,7 +82,7 @@ watch(store.organizations, (orgs) => {
     }
 })
 
-const onUpload = (uploadedProof: ProofDocument) => {
+const onUpload = (uploadedProof: AppLedgerProofWrapper) => {
     proof.value = uploadedProof
 }
 </script>

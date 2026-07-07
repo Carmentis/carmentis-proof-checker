@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import {ref, onMounted} from 'vue'
 import {
-    ProofDocument,
+    AppLedgerProofWrapper,
     Hash,
     ProviderFactory,
     type ImportedProof,
@@ -97,7 +97,7 @@ import ProofRecordViewer from './ProofRecordViewer.vue'
 import TrustGraphViewer from './TrustGraphViewer.vue'
 
 const props = defineProps<{
-    proof: ProofDocument
+    proof: AppLedgerProofWrapper
     nodeEndpoint: string
 }>()
 
@@ -124,7 +124,6 @@ onMounted(async () => {
             props.nodeEndpoint,
         );
 
-        title.value = props.proof.getTitle();
         author.value = props.proof.getAuthor();
         exportedAt.value = props.proof.getDate().toLocaleString();
 
