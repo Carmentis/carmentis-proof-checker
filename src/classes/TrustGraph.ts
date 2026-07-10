@@ -42,8 +42,32 @@ export class TrustGraph {
     }
 
     async build() {
+        const id = this.nextNodeId();
+
+        this.nodes.push({
+            id,
+            label: "VB",
+            title: "Virtual Blockchain",
+            type: "vb",
+            valid: true,
+            sections: [
+                {
+                    name: "Info",
+                    data: {
+                        "ID": this.vbId,
+                    }
+                }
+            ],
+            verifications: [
+                {
+                    operation: "The virtual blockchain was found on-chain.",
+                    success: true
+                },
+            ]
+        });
+
         for (const proof of this.proofs) {
-            const blockNodeId = this.addBlock(proof);
+            const blockNodeId = this.addMicroblock(id, proof);
             const vcList = this.getVerifiableCredentialList(proof.data);
 
             for (const vc of vcList) {
@@ -57,13 +81,14 @@ export class TrustGraph {
         }
     }
 
-    private addBlock(proof: ImportedProof) {
+    private addMicroblock(parentId: string, proof: ImportedProof) {
         const id = this.nextNodeId();
 
         this.nodes.push({
             id,
-            label: "Block " + proof.height,
-            type: "block",
+            label: "MB " + proof.height,
+            title: "Microblock",
+            type: "mb",
             valid: true,
             sections: [
                 {
@@ -85,6 +110,7 @@ export class TrustGraph {
                 }
             ]
         });
+        this.edges.push({ source: parentId, target: id });
         return id;
     }
 
@@ -92,12 +118,13 @@ export class TrustGraph {
         const id = this.nextNodeId();
         const sdJwt = new SdJwt(vc.data);
         const data = await sdJwt.decode();
-        const valid = true // data.valid;
+        const valid = data.valid;
         const x5c = data.issuerJwk?.x5c;
 
         this.nodes.push({
             id,
             label: "VC",
+            title: "Verifiable Credential",
             type: "vc",
             valid,
             sections: [
@@ -146,6 +173,7 @@ export class TrustGraph {
         this.nodes.push({
             id,
             label: "X509",
+            title: "X509 Certificate",
             type: "x509",
             valid: true,
             sections: [

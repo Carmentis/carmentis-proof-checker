@@ -68,6 +68,24 @@ export class SdJwt {
 
         const sdjwtVerifier = new SDJwtVcInstance({
             hasher: digest,
+            statusListFetcher: async (uri: string) => {
+                const response = await fetch(uri);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch statusList (${response.status}) from ${uri}`);
+                }
+                return response.text();
+            },
+            statusVerifier: async (data, signature) => {
+                const binData = (new TextEncoder()).encode(data);
+                const binSig = Base64.decodeBinary(signature, Base64.URL);
+                const verified = await subtle.verify(
+                    { name: crv },
+                    key,
+                    binSig,
+                    binData,
+                );
+                return verified;
+            },
             verifier: async (data, signature) => {
                 const binData = (new TextEncoder()).encode(data);
                 const binSig = Base64.decodeBinary(signature, Base64.URL);
@@ -80,9 +98,11 @@ export class SdJwt {
                 return verified;
             }
         });
-        let verified = true;
+        let verified: boolean;
         try {
-            await sdjwtVerifier.verify(this.jwt)
+            const result = await sdjwtVerifier.safeVerify(this.jwt)
+            console.log("safeVerify()", result);
+            verified = result.success;
         }
         catch (error) {
             console.error("sig verification failed", error);

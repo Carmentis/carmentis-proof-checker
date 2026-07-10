@@ -41,6 +41,7 @@
                         :stroke="block.stroke"
                         stroke-width="3"
                     />
+                    <title>{{ block.title }}</title>
                     <text
                         :x="block.textX"
                         :y="block.textY"

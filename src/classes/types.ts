@@ -11,7 +11,8 @@ export interface Verification {
 export interface GraphNode {
     id: string
     label: string
-    type: "block"|"vc"|"x509"
+    title: string
+    type: "vb"|"mb"|"vc"|"x509"
     valid: boolean
     sections: ModalSection[]
     verifications: Verification[]
@@ -34,6 +35,7 @@ export interface ModalContent {
 export interface Block {
     id: string
     label: string
+    title: string
     modalContent: ModalContent
     x: number
     y: number

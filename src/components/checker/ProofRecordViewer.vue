@@ -28,7 +28,7 @@
                                 >
                                     {{ index + 1 }}
                                 </span>
-                                Block {{ record.height }}
+                                Microblock {{ record.height }}
                             </h4>
                             <BlockViewer :data="record.data" :initial-path="[]" />
                         </div>

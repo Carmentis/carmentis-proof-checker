@@ -51,19 +51,15 @@
                             </div>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Proof Title</p>
-                            <p class="font-medium text-gray-800 dark:text-gray-200">{{ title }}</p>
-                        </div>
-                        <div>
                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Proof Export Time</p>
                             <p class="font-medium text-gray-800 dark:text-gray-200">{{ exportedAt }}</p>
                         </div>
                     </div>
                     <div class="space-y-4">
                         <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Virtual Blockchain ID</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Chain ID</p>
                             <p class="font-mono text-sm break-all text-gray-800 dark:text-gray-200">
-                                {{ appLedgerId }}
+                                {{ chainId }}
                             </p>
                         </div>
                         <div>
@@ -112,10 +108,10 @@ const verificationResult = ref<{
     records: ImportedProof[]
 } | null>(null)
 
-const title = ref('')
 const author = ref('')
 const exportedAt = ref('')
 const appLedgerId = ref('')
+const chainId = ref('')
 const records = ref<ImportedProof[]>([])
 
 onMounted(async () => {
@@ -124,6 +120,7 @@ onMounted(async () => {
             props.nodeEndpoint,
         );
 
+        chainId.value = props.proof.getChainId();
         author.value = props.proof.getAuthor();
         exportedAt.value = props.proof.getDate().toLocaleString();
 
