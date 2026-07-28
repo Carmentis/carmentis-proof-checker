@@ -59,11 +59,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { AppLedgerProofWrapper } from '@cmts-dev/carmentis-sdk-core'
+import { WrappedProofSchema, type JsonData } from '@cmts-dev/carmentis-sdk-core'
 import Message from 'primevue/message'
 
 const emit = defineEmits<{
-    upload: [proof: AppLedgerProofWrapper]
+    upload: [proof: JsonData]
 }>()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -88,8 +88,7 @@ const processFile = (file?: File) => {
         reader.onload = (e) => {
             try {
                 const content = JSON.parse(e.target?.result as string)
-                const proofDocument = AppLedgerProofWrapper.fromObject(content)
-                emit('upload', proofDocument)
+                emit('upload', content);
             } catch (err) {
                 console.error(err)
                 error.value = 'Invalid JSON file. Please upload a valid JSON file.'

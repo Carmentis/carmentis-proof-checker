@@ -89,12 +89,12 @@ import {
     type ImportedProof,
 } from '@cmts-dev/carmentis-sdk-core'
 import ProgressSpinner from 'primevue/progressspinner'
-import ProofRecordViewer from './ProofRecordViewer.vue'
+import ProofRecordViewer from './AppLedgerProofRecordViewer.vue'
 import TrustGraphViewer from './TrustGraphViewer.vue'
+import { Network } from '@/classes/Network.ts'
 
 const props = defineProps<{
     proof: AppLedgerProofWrapper
-    nodeEndpoint: string
 }>()
 
 const emit = defineEmits<{
@@ -116,11 +116,12 @@ const records = ref<ImportedProof[]>([])
 
 onMounted(async () => {
     try {
+        chainId.value = props.proof.getChainId();
+        const nodeEndpoint = Network.getNodeEndpoint(chainId.value);
         const provider = ProviderFactory.createInMemoryProviderWithExternalProvider(
-            props.nodeEndpoint,
+            nodeEndpoint,
         );
 
-        chainId.value = props.proof.getChainId();
         author.value = props.proof.getAuthor();
         exportedAt.value = props.proof.getDate().toLocaleString();
 
