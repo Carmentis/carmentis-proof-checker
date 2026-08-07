@@ -11,27 +11,18 @@ importers:
       '@cmts-dev/carmentis-sdk-core':
         specifier: ^1.2.35
         version: 1.2.35(typescript@5.9.3)
-      '@peculiar/x509':
-        specifier: ^2.0.0
-        version: 2.0.0
+      '@cmts-dev/carmentis-sdk-vc':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@primevue/themes':
         specifier: ^4.5.4
         version: 4.5.4
-      '@sd-jwt/crypto-browser':
-        specifier: ^0.19.0
-        version: 0.19.0
       '@sd-jwt/crypto-nodejs':
         specifier: ^0.19.0
         version: 0.19.0
-      '@sd-jwt/sd-jwt-vc':
-        specifier: ^0.20.0
-        version: 0.20.0
       d3-dag:
         specifier: ^1.2.1
         version: 1.2.1
-      jose:
-        specifier: ^6.2.2
-        version: 6.2.3
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
@@ -262,6 +253,9 @@ packages:
 
   '@cmts-dev/carmentis-sdk-core@1.2.35':
     resolution: {integrity: sha512-PN0diiSgWPfRJDzZR2NxvMiZJ7FtHmDmd+zVo+66J6DCZ+5wE4p9c5WXBsjbFB41jr8WhGdjo1lX1FYoxIwt9A==}
+
+  '@cmts-dev/carmentis-sdk-vc@1.0.0':
+    resolution: {integrity: sha512-YYRDrISb7x7Yk0FIuYaZdv0GE1eTCFrd2y2Cb0NBxisFreX9GCNLUWPIjw1IdccvkxbUPou7o/txCmG2EeMxFQ==}
 
   '@esbuild/aix-ppc64@0.27.4':
     resolution: {integrity: sha512-cQPwL2mp2nSmHHJlCyoXgHGhbEPMrEEU5xhkcy3Hs/O7nGZqEpZ2sUtLaL9MORLtDfRvVl2/3PAuEkYZH0Ty8Q==}
@@ -668,6 +662,7 @@ packages:
 
   '@sd-jwt/crypto-browser@0.19.0':
     resolution: {integrity: sha512-uejcu5GraeBa9d9JioVRSPmo7LHONwSl7dBfowwJaPgC07HkWWxx97eNYZYFqT0g41FQG7XR9FOXibTpiODyWg==}
+    deprecated: Merged into @owf/crypto
 
   '@sd-jwt/crypto-nodejs@0.19.0':
     resolution: {integrity: sha512-mRUZ5pgMBqisXIJyq9vzNH0p4szHV7Dg87Mzm7mI7pgPjIkx9g8R1gRBWaRNzy6mblrTvEpcziPe6bnTY04Lqw==}
@@ -1121,6 +1116,9 @@ packages:
   jose@6.2.3:
     resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
+  jose@6.2.8:
+    resolution: {integrity: sha512-Bsdjwm3Qsd/P0jR+BHDe3LytDfY7WBq2HmCCLIwuVRHMuEC9ae7/R474GIUdF1NgCyZjzVo/A9DOiOBtXq8ZoQ==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -1285,8 +1283,8 @@ packages:
     resolution: {integrity: sha512-MyIV3ZA/PmyBN/ud8vV9XzwTrNtR4jFrObymZYnZqMmW0zA8Z17vnT0rBgFE/TlohB+YCHqXMgZzb3Csp49vqg==}
     engines: {node: '>=14.16'}
 
-  pako@2.1.0:
-    resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
+  pako@2.2.0:
+    resolution: {integrity: sha512-zJq6RP/5q+TO2OpFV3FHzlPnFjmkb7Nc99a5SNjJE+uu/PkpChs+NIZSSzbBoD+6kjiISXjfYdwj1ZRQ81dz/w==}
 
   path-browserify@1.0.1:
     resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
@@ -1856,6 +1854,13 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
+  '@cmts-dev/carmentis-sdk-vc@1.0.0':
+    dependencies:
+      '@peculiar/x509': 2.0.0
+      '@sd-jwt/crypto-browser': 0.19.0
+      '@sd-jwt/sd-jwt-vc': 0.20.0
+      jose: 6.2.8
+
   '@esbuild/aix-ppc64@0.27.4':
     optional: true
 
@@ -1975,7 +1980,7 @@ snapshots:
     dependencies:
       '@owf/identity-common': 0.1.0-alpha-20260422101556
       cbor-x: 1.6.4
-      pako: 2.1.0
+      pako: 2.2.0
 
   '@peculiar/asn1-cms@2.8.0':
     dependencies:
@@ -2646,6 +2651,8 @@ snapshots:
 
   jose@6.2.3: {}
 
+  jose@6.2.8: {}
+
   js-tokens@4.0.0: {}
 
   jsesc@3.1.0: {}
@@ -2783,7 +2790,7 @@ snapshots:
 
   p-timeout@6.1.4: {}
 
-  pako@2.1.0: {}
+  pako@2.2.0: {}
 
   path-browserify@1.0.1: {}
 

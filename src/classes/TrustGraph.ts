@@ -3,13 +3,11 @@ import {
     type GraphEdge,
     type VerifiableCredential,
 } from "./types"
-import { SdJwt } from "./SdJwt";
-import { X509 } from "./X509";
+import { SdJwt, X509, type X509Certificate } from "@cmts-dev/carmentis-sdk-vc";
 import {
     type ImportedProof,
     type JsonData,
 } from '@cmts-dev/carmentis-sdk-core'
-import type { X509Certificate } from "@peculiar/x509";
 const subtle = window.crypto.subtle;
 
 const SDJWT_MARKER = "__sd_jwt__";
@@ -132,9 +130,9 @@ export class TrustGraph {
                     name: 'Info',
                     data: {
                         'Format': 'SD-JWT',
-                        'Issued on': data.info.issuedOn,
-                        'Valid from': data.info.validFrom,
-                        'Valid until': data.info.validUntil,
+                        'Issued on': data.info.issuedOn || "-",
+                        'Valid from': data.info.validFrom || "-",
+                        'Valid until': data.info.validUntil || "-",
                     }
                 },
                 {
