@@ -70,6 +70,18 @@
                 </div>
             </div>
         </div>
+        <div
+            class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-md"
+        >
+            <div class="p-6">
+                <h4
+                    class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center"
+                >
+                    Data Explorer
+                </h4>
+                <BlockViewer :data="verificationResult.resolvedJson" :initial-path="[]" />
+            </div>
+        </div>
     </div>
 </template>
 
@@ -84,6 +96,7 @@ import {
 import ProgressSpinner from 'primevue/progressspinner'
 import { Network } from '@/classes/Network.ts'
 import { ProofCheckerResolverHydrator } from '@/classes/ProofCheckerResolverHydrator'
+import BlockViewer from './BlockViewer.vue'
 
 const props = defineProps<{
     proof: ResolutionProofWrapper
