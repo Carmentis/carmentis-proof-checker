@@ -1,9 +1,9 @@
 import {
     type GraphNode,
     type GraphEdge,
-    type VerifiableCredential,
+    type TaggedContent,
 } from "./types"
-import { SdJwt, X509, type X509Certificate } from "@cmts-dev/carmentis-sdk-vc";
+import { SdJwt, X509 } from "@cmts-dev/carmentis-sdk-core";
 import {
     type ImportedProof,
     type JsonData,
@@ -11,6 +11,7 @@ import {
 const subtle = window.crypto.subtle;
 
 const SDJWT_MARKER = "__sd_jwt__";
+const X509_MARKER = "__x509__";
 
 export class TrustGraph {
     private vbId: string;
@@ -66,12 +67,17 @@ export class TrustGraph {
 
         for (const proof of this.proofs) {
             const blockNodeId = this.addMicroblock(id, proof);
-            const vcList = this.getVerifiableCredentialList(proof.data);
+            const taggedContent = this.getTaggedContent(proof.data);
 
-            for (const vc of vcList) {
-                switch (vc.type) {
+            for (const content of taggedContent) {
+                switch (content.type) {
                     case "sdjwt": {
-                        const vcNodeId = await this.addSdJwt(blockNodeId, vc);
+                        const vcNodeId = await this.addSdJwt(blockNodeId, content.data);
+                        break;
+                    }
+                    case "x509": {
+                        const cert = X509.fromString(content.data);
+                        const x509NodeId = await this.addX509(blockNodeId, cert);
                         break;
                     }
                 }
@@ -112,9 +118,9 @@ export class TrustGraph {
         return id;
     }
 
-    private async addSdJwt(parentId: string, vc: VerifiableCredential) {
+    private async addSdJwt(parentId: string, jwt: string) {
         const id = this.nextNodeId();
-        const sdJwt = new SdJwt(vc.data);
+        const sdJwt = new SdJwt(jwt);
         const data = await sdJwt.decode();
         const valid = data.valid;
         const x5c = data.issuerJwk?.x5c;
@@ -155,7 +161,7 @@ export class TrustGraph {
 
         if (x5c) {
             let parentId = id;
-            const certificates = X509.decodeX5c(x5c);
+            const certificates = X509.fromX5c(x5c);
             for (const cert of certificates) {
                 parentId = await this.addX509(parentId, cert);
             }
@@ -163,10 +169,22 @@ export class TrustGraph {
         return id;
     }
 
-    private async addX509(parentId: string, cert: X509Certificate) {
+    private async addX509(parentId: string, cert: X509) {
         const id = this.nextNodeId();
-        const publicKey = await cert.publicKey.export();
+        const publicKey = await cert.getPublicKey();
+        const info = await cert.getInformation();
+        const extensions = cert.getExtensions();
         const exportedPublicKey = await subtle.exportKey("jwk", publicKey);
+        const lei = extensions["1.3.6.1.4.1.52266.1"]?.values?.[0];
+        const data = {
+            "Subject": cert.getSubject(),
+            "Issuer": cert.getIssuer(),
+            "Valid from": info.notBefore,
+            "Valid until": info.notAfter,
+            "Serial number": info.serialNumber,
+            ...lei ? { "LEI": lei } : {},
+            "Public key": exportedPublicKey,
+        };
 
         this.nodes.push({
             id,
@@ -177,14 +195,7 @@ export class TrustGraph {
             sections: [
                 {
                     name: "Info",
-                    data: {
-                        "Subject": cert.subject,
-                        "Issuer": cert.issuer,
-                        "Valid from": cert.notBefore,
-                        "Valid until": cert.notAfter,
-                        "Serial number": cert.serialNumber,
-                        "Public key": exportedPublicKey,
-                    }
+                    data
                 }
             ],
             verifications: [
@@ -202,8 +213,8 @@ export class TrustGraph {
         return id;
     }
 
-    private getVerifiableCredentialList(data: JsonData) {
-        const list: VerifiableCredential[] = [];
+    private getTaggedContent(data: JsonData) {
+        const list: TaggedContent[] = [];
         traverse(data);
         return list;
 
@@ -221,6 +232,14 @@ export class TrustGraph {
                         if (typeof child === "string") {
                             list.push({
                                 type: "sdjwt",
+                                data: child,
+                            });
+                        }
+                    }
+                    else if (key === X509_MARKER) {
+                        if (typeof child === "string") {
+                            list.push({
+                                type: "x509",
                                 data: child,
                             });
                         }

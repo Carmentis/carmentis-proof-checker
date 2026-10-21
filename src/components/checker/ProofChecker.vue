@@ -24,6 +24,9 @@
         <div v-else-if="proof instanceof MicroblockProofWrapper" class="space-y-6">
             <MicroblockProofViewer :proof="proof" @reset="proof = undefined" />
         </div>
+        <div v-else-if="proof instanceof ResolutionProofWrapper" class="space-y-6">
+            <ResolutionProofViewer :proof="proof" @reset="proof = undefined" />
+        </div>
         <div v-else>
             <ProofCheckerUpload @upload="onUpload" />
         </div>
@@ -36,6 +39,7 @@ import {
     AccountProofWrapper,
     AppLedgerProofWrapper,
     MicroblockProofWrapper,
+    ResolutionProofWrapper,
     ProofFactory,
     type JsonData,
     type WrappedProof
@@ -45,12 +49,20 @@ import ProofCheckerUpload from './ProofCheckerUpload.vue'
 import AppLedgerProofViewer from './AppLedgerProofViewer.vue'
 import AccountProofViewer from './AccountProofViewer.vue'
 import MicroblockProofViewer from './MicroblockProofViewer.vue'
+import ResolutionProofViewer from './ResolutionProofViewer.vue'
 
 const { isDark, toggle } = useDarkMode()
 
-const proof = ref<AccountProofWrapper | AppLedgerProofWrapper | MicroblockProofWrapper | undefined>()
+const proof = ref<
+    AccountProofWrapper |
+    AppLedgerProofWrapper |
+    MicroblockProofWrapper |
+    ResolutionProofWrapper |
+    undefined
+>()
 
 const onUpload = (content: JsonData) => {
+    console.log("content", JSON.stringify(content, null, 2));
     const uploadedProof = ProofFactory.importProof(content as WrappedProof);
     if (uploadedProof instanceof AppLedgerProofWrapper) {
         proof.value = uploadedProof
@@ -59,6 +71,9 @@ const onUpload = (content: JsonData) => {
         proof.value = uploadedProof
     }
     else if (uploadedProof instanceof MicroblockProofWrapper) {
+        proof.value = uploadedProof
+    }
+    else if (uploadedProof instanceof ResolutionProofWrapper) {
         proof.value = uploadedProof
     }
 }

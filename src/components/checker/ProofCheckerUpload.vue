@@ -21,7 +21,7 @@
         >
             <input
                 type="file"
-                accept="application/json"
+                accept="application/json,application/pdf"
                 ref="fileInputRef"
                 class="hidden"
                 @change="handleFileUpload"
@@ -47,7 +47,7 @@
                 >
                     Browse Files
                 </button>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-4">Supported file: JSON</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-4">Supported files: JSON, PDF</p>
             </div>
         </div>
 
@@ -60,6 +60,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { WrappedProofSchema, type JsonData } from '@cmts-dev/carmentis-sdk-core'
+import { PDF } from '@libpdf/core';
 import Message from 'primevue/message'
 
 const emit = defineEmits<{
@@ -78,24 +79,80 @@ const handleFileUpload = (event: Event) => {
 
 const processFile = (file?: File) => {
     error.value = null
-    if (file) {
-        if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
-            error.value = 'Please upload a JSON file'
-            return
-        }
 
-        const reader = new FileReader()
-        reader.onload = (e) => {
-            try {
-                const content = JSON.parse(e.target?.result as string)
-                emit('upload', content);
-            } catch (err) {
-                console.error(err)
-                error.value = 'Invalid JSON file. Please upload a valid JSON file.'
-            }
-        }
-        reader.readAsText(file)
+    if (!file) {
+        return;
     }
+
+    const fileType = getFileType(file);
+    const reader = new FileReader();
+
+    switch (fileType) {
+        case "json": {
+            reader.onload = (e) => {
+                try {
+                    const text = e.target?.result as string;
+                    const content = JSON.parse(text);
+                    emit('upload', content);
+                } catch (err) {
+                    console.error(err);
+                    error.value = `Unable to process this JSON file. Please make sure it's a valid Carmentis proof.`;
+                }
+            }
+            reader.readAsText(file)
+            break;
+        }
+        case "pdf": {
+            reader.onload = async (e) => {
+                try {
+                    const pdfBytes = e.target?.result;
+                    if (!(pdfBytes instanceof ArrayBuffer)) {
+                        throw new Error('Unexpected data format');
+                    }
+                    const pdfDoc = await PDF.load(new Uint8Array(pdfBytes));
+                    const attachments = pdfDoc.getAttachments();
+
+                    for (const file of attachments) {
+                        const data = pdfDoc.getAttachment(file[0]);
+                        if (data === null) {
+                            throw new Error('Unable to extract attachment');
+                        }
+                        const text = new TextDecoder().decode(data);
+                        const content = JSON.parse(text);
+                        try {
+                            emit('upload', content);
+                            return;
+                        }
+                        catch (err) {
+                            console.error(`'${file[0]}' is not recognized as a Carmentis proof`);
+                        }
+                    }
+                    throw new Error('No Carmentis proof found');
+                } catch (err) {
+                    console.error(err);
+                    error.value = `Unable to process this PDF file. Please make sure a valid Carmentis proof is attached.`;
+                }
+            }
+            reader.readAsArrayBuffer(file)
+            break;
+        }
+        default: {
+            error.value = 'Supported file formats are JSON and PDF.';
+            return;
+        }
+    }
+}
+
+const getFileType = (file: File): string => {
+    const lowerCaseName = file.name.toLowerCase();
+
+    if (file.type === "application/json" || lowerCaseName.endsWith(".json")) {
+        return "json";
+    }
+    if (file.type === "application/pdf" || lowerCaseName.endsWith(".pdf")) {
+        return "pdf";
+    }
+    return "unknown";
 }
 
 const handleDragOver = (e: DragEvent) => {

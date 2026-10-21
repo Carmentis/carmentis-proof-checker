@@ -65,7 +65,7 @@ export interface Connection {
     markerEnd?: string
 }
 
-export interface VerifiableCredential {
-    type: "sdjwt"
+export interface TaggedContent {
+    type: "sdjwt"|"x509"
     data: string
 }
