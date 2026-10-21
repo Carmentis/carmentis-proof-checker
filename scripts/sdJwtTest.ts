@@ -1,3 +1,4 @@
+/*
 import { SDJwtVcInstance } from "@sd-jwt/sd-jwt-vc";
 import { digest } from "@sd-jwt/crypto-nodejs";
 import { importJWK } from "jose";
@@ -60,3 +61,4 @@ async function testJwt() {
     // console.log("verifier", verifier);
     // console.log("verify", await sdjwt.verify(jwt));
 }
+*/

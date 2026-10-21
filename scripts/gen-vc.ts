@@ -1,3 +1,4 @@
+/*
 import { decodeJwt, jwtVerify } from 'jose';
 import * as pkijs from 'pkijs';
 import * as asn1js from 'asn1js';
@@ -40,23 +41,21 @@ async function test() {
   console.log(getOid(issuer, OID.CN));
   console.log(getOid(issuer, OID.O));
 
-  /*
-  const jwt = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVDcmVkZW50aWFsIl0sImNyZWRlbnRpYWxTdWJqZWN0Ijp7Im5hbWUiOiJPbGQgTm9yZG1hbm4ifSwiZXZpZGVuY2UiOnsidHMiOjEyfX0sInN1YiI6ImRpZDpleGFtcGxlOnN1YmplY3RZIiwibmJmIjoxNzc2NjkyNTM1LCJpc3MiOiJkaWQ6a2V5Ono2TWtwTTVXeXplRWJhZ01iY1p2anM2Zk5kNlJSdGdpa0tDVEVCS2lkSkV4RzdocCJ9.zJmb_US3qfSx_przhr1J9lu3JfVxjM185yoedtzdwGq4jzlWuBOuKr2xONHxCOe4sYD3fFYTUbG5_q1xTRiCCA';
-  const payload0 = decodeJwt(jwt);
-  console.log("payload", JSON.stringify(payload0, null, 2));
-  const {payload, protectedHeader} = await jwtVerify(jwt, key);
+  //const jwt = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVDcmVkZW50aWFsIl0sImNyZWRlbnRpYWxTdWJqZWN0Ijp7Im5hbWUiOiJPbGQgTm9yZG1hbm4ifSwiZXZpZGVuY2UiOnsidHMiOjEyfX0sInN1YiI6ImRpZDpleGFtcGxlOnN1YmplY3RZIiwibmJmIjoxNzc2NjkyNTM1LCJpc3MiOiJkaWQ6a2V5Ono2TWtwTTVXeXplRWJhZ01iY1p2anM2Zk5kNlJSdGdpa0tDVEVCS2lkSkV4RzdocCJ9.zJmb_US3qfSx_przhr1J9lu3JfVxjM185yoedtzdwGq4jzlWuBOuKr2xONHxCOe4sYD3fFYTUbG5_q1xTRiCCA';
+  //const payload0 = decodeJwt(jwt);
+  //console.log("payload", JSON.stringify(payload0, null, 2));
+  //const {payload, protectedHeader} = await jwtVerify(jwt, key);
 
-  const raw = await genX509();
-  console.log(raw);
-  console.log(Buffer.from(raw).toString("base64"));
-  const asn1 = asn1js.fromBER(raw);
-  const cert = new pkijs.Certificate({ schema: asn1.result });
+  //const raw = await genX509();
+  //console.log(raw);
+  //console.log(Buffer.from(raw).toString("base64"));
+  //const asn1 = asn1js.fromBER(raw);
+  //const cert = new pkijs.Certificate({ schema: asn1.result });
 
-  console.log("Subject:", cert.subject.typesAndValues);
-  console.log("Issuer:", cert.issuer.typesAndValues);
-  console.log("Valid from:", cert.notBefore.value);
-  console.log("Valid to:", cert.notAfter.value);
-*/
+  //console.log("Subject:", cert.subject.typesAndValues);
+  //console.log("Issuer:", cert.issuer.typesAndValues);
+  //console.log("Valid from:", cert.notBefore.value);
+  //console.log("Valid to:", cert.notAfter.value);
 }
 
 async function generateKeyPair() {
@@ -178,3 +177,4 @@ function getOid(names: pkijs.RelativeDistinguishedNames, oid: string): string | 
 
   return cnAttr?.value.valueBlock.value;
 }
+*/

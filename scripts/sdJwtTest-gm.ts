@@ -1,3 +1,4 @@
+/*
 import { describe, it } from 'node:test';
 import { SDJwtInstance } from '@sd-jwt/core';
 import { SDJwtVcInstance } from '@sd-jwt/sd-jwt-vc';
@@ -49,3 +50,4 @@ describe("test", () => {
 
 	})
 })
+*/

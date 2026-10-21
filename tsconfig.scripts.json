@@ -6,5 +6,5 @@
     "types": ["node"],
     "strict": true
   },
-  "include": ["scripts/**/*.ts"]
+  "include": ["scripts/**/*.ts", "scripts/sdJwtTest.ts"]
 }
