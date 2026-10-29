@@ -76,6 +76,8 @@ interface CredentialCheck extends SdJwtCheck {
 }
 
 interface Context {
+    /** Signature / credential tags (by parent + node) whose covered data does not match the proof file. */
+    skipped: Set<string>
     /** Keys, per parent path, that carry a credential node: they all come from the same credential. */
     vcKeysByParent: Map<string, string[]>
     resolvedJson: unknown
@@ -173,7 +175,7 @@ async function collectTags(sources: unknown[]) {
     return { signatures, credentials }
 }
 
-function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
+function buildEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
     const node = mapped.node
     const base = { attachedAt: mapped.path, inherited: mapped.depth > 0 }
     const key = mapped.path[mapped.path.length - 1] ?? ''
@@ -312,9 +314,31 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
     }
 }
 
+const SKIPPABLE: EvidenceKind[] = ['signed', 'credential']
+
+/** All values one tag produced share its parent and its node: that pair identifies the tag. */
+function tagKey(path: Path, node: unknown) {
+    return `${JSON.stringify(path.slice(0, -1))}|${JSON.stringify(node)}`
+}
+
+/** A signature or presentation over data that does not match the file cannot be trusted: skip its check. */
+function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
+    const evidence = buildEvidence(mapped, ctx)
+    if (!SKIPPABLE.includes(evidence.kind) || !ctx.skipped.has(tagKey(mapped.path, mapped.node))) return evidence
+    const what = evidence.kind === 'signed' ? 'signature' : 'presentation'
+    return {
+        ...evidence,
+        skipped: true,
+        failed: false,
+        verification: { status: 'unchecked', label: 'Not checked' },
+        warning: `The ${what} was not checked: the data it covers does not match what the proof file claims. Values that differ are highlighted in red.`,
+    }
+}
+
 function computeLevel(evidence: TrustEvidence[]): TrustLevel {
     if (evidence.some((e) => e.failed)) return 'failed'
-    const has = (kind: EvidenceKind) => evidence.some((e) => e.kind === kind)
+    // A skipped check proves nothing: only evidence that was actually verified counts.
+    const has = (kind: EvidenceKind) => evidence.some((e) => e.kind === kind && !e.skipped)
     if (has('onchain') && has('signed')) return 'onchain-signed'
     if (has('onchain')) return 'onchain'
     if (has('signed') || has('credential')) return 'authenticated'
@@ -551,6 +575,19 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
         input.linkedJson,
         ...(input.hydrated ?? []),
     ])
+    const mismatches: Mismatch[] = []
+    deepDiff(input.claimedResolvedJson, input.resolvedJson, [], mismatches)
+
+    const skipped = new Set<string>()
+    for (const [serialized, nodes] of input.report.nodes) {
+        const path = JSON.parse(serialized) as Path
+        const mismatched = mismatches.some((m) => path.every((segment, i) => m.path[i] === segment))
+        if (!mismatched) continue
+        for (const node of nodes) {
+            if (node.type === 'signature' || node.type === 'vc' || node.type === 'vp') skipped.add(tagKey(path, node))
+        }
+    }
+
     const vcKeysByParent = new Map<string, string[]>()
     for (const [serialized, nodes] of input.report.nodes) {
         if (!nodes.some((n) => n.type === 'vc' || n.type === 'vp')) continue
@@ -558,7 +595,7 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
         const parent = JSON.stringify(path.slice(0, -1))
         vcKeysByParent.set(parent, [...(vcKeysByParent.get(parent) ?? []), String(path[path.length - 1])])
     }
-    const ctx: Context = { vcKeysByParent, resolvedJson: input.resolvedJson, signatures, credentials }
+    const ctx: Context = { skipped, vcKeysByParent, resolvedJson: input.resolvedJson, signatures, credentials }
     const counts: Record<TrustLevel, number> = {
         untrusted: 0,
         authenticated: 0,
@@ -635,8 +672,6 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
 
     const root = build(input.resolvedJson, [], null)
 
-    const mismatches: Mismatch[] = []
-    deepDiff(input.claimedResolvedJson, input.resolvedJson, [], mismatches)
     const unresolved = findUnresolvedTags(input.linkedJson, input.report)
 
     let verdict: Verdict = 'verified'

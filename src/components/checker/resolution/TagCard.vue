@@ -91,6 +91,15 @@
             </div>
         </header>
 
+        <p
+            v-if="primary.warning"
+            role="alert"
+            class="mx-4 mb-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-inset ring-amber-200 dark:bg-amber-900/20 dark:text-amber-200 dark:ring-amber-800/60"
+        >
+            <i class="pi pi-exclamation-triangle mt-0.5" aria-hidden="true"></i>
+            {{ primary.warning }}
+        </p>
+
         <div v-if="why" class="space-y-2 border-t border-gray-100 px-4 py-3 dark:border-gray-700">
             <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
                 {{ LEVEL_META[card.level].description }}

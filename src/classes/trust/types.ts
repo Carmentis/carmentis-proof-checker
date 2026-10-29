@@ -34,6 +34,10 @@ export interface TrustEvidence {
     /** Claims a credential or presentation discloses about its subject. */
     disclosed?: DisclosedClaim[]
     verification: Verification
+    /** True when the check was left out because the covered data does not match the proof file. */
+    skipped?: boolean
+    /** Shown prominently on the card, e.g. why a check was skipped. */
+    warning?: string
 }
 
 export interface MicroblockOrigin {
