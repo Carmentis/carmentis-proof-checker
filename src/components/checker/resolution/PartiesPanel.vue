@@ -71,9 +71,16 @@
                             Account {{ party.identity.accountId.slice(0, 10) }}…
                         </p>
                     </div>
-                    <p v-else-if="!party.certificates.length" class="mt-2 text-xs text-gray-500">
+                    <p v-else-if="!party.certificates.length && !party.claims.length" class="mt-2 text-xs text-gray-500">
                         Identity not established
                     </p>
+
+                    <dl v-if="party.claims.length" class="mt-2 space-y-0.5 text-xs">
+                        <div v-for="claim in party.claims" :key="claim.name" class="flex gap-2">
+                            <dt class="w-24 shrink-0 truncate text-gray-500" :title="claim.name">{{ claim.name }}</dt>
+                            <dd class="min-w-0 break-words text-gray-800 dark:text-gray-200">{{ claim.value }}</dd>
+                        </div>
+                    </dl>
 
                     <details class="mt-2">
                         <summary class="flex min-h-8 cursor-pointer items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -155,6 +162,7 @@ const ROLE_LABEL = {
     signer: 'Signed',
     issuer: 'Issued credential',
     author: 'Recorded on-chain',
+    subject: 'Holds credential',
 } as const
 
 const selected = useSelectedParty()

@@ -58,21 +58,37 @@
                     <p v-else class="mt-0.5 text-xs text-gray-500">{{ summary }}</p>
                 </div>
             </div>
-            <button
-                type="button"
-                class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition active:scale-95 motion-reduce:transition-none"
-                :class="LEVEL_BADGE[card.level]"
-                :aria-expanded="why"
-                @click="why = !why"
-            >
-                <i class="pi text-[0.7rem]" :class="LEVEL_META[card.level].icon" aria-hidden="true"></i>
-                {{ LEVEL_META[card.level].short }}
-                <i
-                    class="pi pi-chevron-down text-[0.6rem] transition-transform motion-reduce:transition-none"
-                    :class="{ 'rotate-180': why }"
-                    aria-hidden="true"
-                ></i>
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+                <span
+                    class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset"
+                    :class="VERIFICATION_STYLE[primary.verification.status]"
+                >
+                    <i class="pi text-[0.7rem]" :class="VERIFICATION_ICON[primary.verification.status]" aria-hidden="true"></i>
+                    {{ primary.verification.label }}
+                </span>
+                <span
+                    v-if="primary.verification.caveat"
+                    class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800/60"
+                >
+                    <i class="pi pi-exclamation-triangle text-[0.7rem]" aria-hidden="true"></i>
+                    {{ primary.verification.caveat }}
+                </span>
+                <button
+                    type="button"
+                    class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition active:scale-95 motion-reduce:transition-none"
+                    :class="LEVEL_BADGE[card.level]"
+                    :aria-expanded="why"
+                    @click="why = !why"
+                >
+                    <i class="pi text-[0.7rem]" :class="LEVEL_META[card.level].icon" aria-hidden="true"></i>
+                    {{ LEVEL_META[card.level].short }}
+                    <i
+                        class="pi pi-chevron-down text-[0.6rem] transition-transform motion-reduce:transition-none"
+                        :class="{ 'rotate-180': why }"
+                        aria-hidden="true"
+                    ></i>
+                </button>
+            </div>
         </header>
 
         <div v-if="why" class="space-y-2 border-t border-gray-100 px-4 py-3 dark:border-gray-700">
@@ -120,7 +136,19 @@ const KIND_ICON: Record<EvidenceKind, string> = {
     certificate: 'pi-shield',
 }
 
-const ROLE_VERB = { signer: 'Signed by', issuer: 'Issued by', author: 'Recorded by' } as const
+const ROLE_VERB = { signer: 'Signed by', issuer: 'Issued by', author: 'Recorded by', subject: 'Issued to' } as const
+
+const VERIFICATION_STYLE = {
+    verified: 'bg-green-50 text-green-800 ring-green-200 dark:bg-green-900/20 dark:text-green-300 dark:ring-green-800/60',
+    failed: 'bg-red-50 text-red-800 ring-red-200 dark:bg-red-900/20 dark:text-red-300 dark:ring-red-800/60',
+    unchecked: 'bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800/60',
+} as const
+
+const VERIFICATION_ICON = {
+    verified: 'pi-check-circle',
+    failed: 'pi-times-circle',
+    unchecked: 'pi-exclamation-triangle',
+} as const
 
 const selected = useSelectedParty()
 const names = usePartyNames()

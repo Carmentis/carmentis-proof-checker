@@ -12,6 +12,7 @@ import { checkSdJwt, type SdJwtCheck } from './SdJwtChecker'
 import type {
     CertificateInfo,
     CertificateView,
+    DisclosedClaim,
     DistinguishedNameEntry,
     EvidenceKind,
     Mismatch,
@@ -192,6 +193,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                 ],
                 party: { id: node.publicKey, kind: 'key', role: 'author' },
                 origin: { vbId: node.vbId, height: node.height },
+                verification: { status: 'verified', label: 'Verified' },
             }
         case 'section':
             return {
@@ -208,6 +210,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                 ],
                 party: { id: node.publicKey, kind: 'key', role: 'author' },
                 origin: { vbId: node.vbId, height: node.height },
+                verification: { status: 'verified', label: 'Found on-chain' },
             }
         case 'signature': {
             const candidates = ctx.signatures.filter((s) => s.publicKey === node.publicKey)
@@ -233,6 +236,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                     'This data is the payload of a signature that verified against the public key below. The owner of this key is not identified yet: the signature shows that the holder of the key vouched for the data.',
                 details,
                 party: { id: node.publicKey, kind: 'key', role: 'signer' },
+                verification: { status: 'verified', label: 'Verified' },
             }
         }
         case 'digestData':
@@ -243,6 +247,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                 reason:
                     'This data hashes to the digest it was linked with, so it is exactly the data the digest refers to. The digest itself only adds trust if it is anchored on-chain or signed.',
                 details: [{ label: 'Digest', value: node.digest }],
+                verification: { status: 'verified', label: 'Digest matches' },
             }
         case 'vc':
         case 'vp': {
@@ -282,6 +287,16 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                 party: match?.issuer ? { id: match.issuer, kind: 'issuer', role: 'issuer' } : undefined,
                 certificates: match?.certificates,
                 subject: match?.subject,
+                disclosed: match ? disclosedClaims(match.claims) : undefined,
+                verification: failed
+                    ? { status: 'failed', label: 'Failed' }
+                    : match
+                      ? {
+                            status: 'verified',
+                            label: 'Verified',
+                            caveat: match.hasStatus ? 'Revocation not checked' : undefined,
+                        }
+                      : { status: 'unchecked', label: 'Not verified' },
             }
         }
         case 'certificate':
@@ -292,6 +307,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                 reason:
                     'This is the content of an X.509 certificate. It was parsed, but its chain of trust is not evaluated yet.',
                 details: [],
+                verification: { status: 'unchecked', label: 'Chain not verified' },
             }
     }
 }
@@ -435,11 +451,36 @@ function findCertificates(key: string | number | null, value: unknown): Certific
     return views.every((v): v is CertificateView => v !== null) ? views : undefined
 }
 
+/** Registered and technical claims: they describe the token, not its subject. */
+const TOKEN_CLAIMS = new Set(['iss', 'sub', 'iat', 'nbf', 'exp', 'jti', 'vct', 'status', 'cnf', 'aud', 'nonce', '_sd', '_sd_alg'])
+
+function disclosedClaims(claims: Record<string, unknown>): DisclosedClaim[] {
+    return Object.entries(claims)
+        .filter(([name]) => !TOKEN_CLAIMS.has(name))
+        .map(([name, value]) => ({ name, value: typeof value === 'string' ? value : JSON.stringify(value) }))
+}
+
+/**
+ * A readable name out of disclosed claims: a full name if there is one, else the most identifying
+ * well-known claim, else the only claim. With several unrelated claims there is no honest single name.
+ */
+function claimName(claims: DisclosedClaim[]): string | undefined {
+    const get = (name: string) => claims.find((c) => c.name === name)?.value
+    const fullName = get('name') ?? [get('given_name'), get('family_name')].filter(Boolean).join(' ')
+    if (fullName) return fullName
+    for (const name of ['email', 'preferred_username', 'username', 'phone_number']) {
+        if (get(name)) return get(name)
+    }
+    return claims.length === 1 ? claims[0]!.value : undefined
+}
+
 /** Prefer what the chain tells us (organization), then a certificate subject. */
 function nameOf(party: Party): string | undefined {
     if (party.identity?.isOrganizationAccount && party.identity.organization) {
         return party.identity.organization.name
     }
+    const disclosed = claimName(party.claims)
+    if (disclosed) return disclosed
     const commonName = party.certificates[0]?.commonName
     if (commonName) return commonName
     if (party.identity?.organization) return `Key of ${party.identity.organization.name}`
@@ -459,30 +500,44 @@ function collectParties(root: TrustTreeNode): Party[] {
             return
         }
         for (const evidence of segment.evidence) {
-            const ref = evidence.party
-            if (!ref) continue
-            let party = parties.get(ref.id)
-            if (!party) {
-                party = {
-                    id: ref.id,
-                    kind: ref.kind,
-                    label: shortId(ref.id),
-                    appearances: [],
-                    certificates: [],
+            const refs = [
+                ...(evidence.party ? [evidence.party] : []),
+                ...(evidence.subject
+                    ? [{ id: evidence.subject, kind: 'key' as const, role: 'subject' as const }]
+                    : []),
+            ]
+            for (const ref of refs) {
+                let party = parties.get(ref.id)
+                if (!party) {
+                    party = {
+                        id: ref.id,
+                        kind: ref.kind,
+                        label: shortId(ref.id),
+                        claims: [],
+                        appearances: [],
+                        certificates: [],
+                    }
+                    parties.set(ref.id, party)
                 }
-                parties.set(ref.id, party)
+                if (evidence.certificates?.length && party.certificates.length === 0 && ref.role === 'issuer') {
+                    party.certificates = evidence.certificates
+                }
+                if (ref.role === 'subject') {
+                    for (const claim of evidence.disclosed ?? []) {
+                        if (!party.claims.some((c) => c.name === claim.name && c.value === claim.value)) {
+                            party.claims.push(claim)
+                        }
+                    }
+                }
+                party.appearances.push({
+                    cardId: segment.id,
+                    role: ref.role,
+                    title: evidence.title,
+                    covers: segment.paths,
+                    level: segment.level,
+                    origin: evidence.origin,
+                })
             }
-            if (evidence.certificates?.length && party.certificates.length === 0) {
-                party.certificates = evidence.certificates
-            }
-            party.appearances.push({
-                cardId: segment.id,
-                role: ref.role,
-                title: evidence.title,
-                covers: segment.paths,
-                level: segment.level,
-                origin: evidence.origin,
-            })
         }
         segment.segments.forEach(visitSegment)
     }

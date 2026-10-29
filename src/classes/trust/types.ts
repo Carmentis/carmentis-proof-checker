@@ -31,6 +31,9 @@ export interface TrustEvidence {
     origin?: MicroblockOrigin
     /** Who a credential or presentation was issued to (its `sub` claim). */
     subject?: string
+    /** Claims a credential or presentation discloses about its subject. */
+    disclosed?: DisclosedClaim[]
+    verification: Verification
 }
 
 export interface MicroblockOrigin {
@@ -86,7 +89,20 @@ export interface PartyIdentity {
     applications: ApplicationInfo[]
 }
 
-export type PartyRole = 'signer' | 'issuer' | 'author'
+export type PartyRole = 'signer' | 'issuer' | 'author' | 'subject'
+
+export interface DisclosedClaim {
+    name: string
+    value: string
+}
+
+/** Outcome of the check run on the tag itself, shown next to the trust level. */
+export interface Verification {
+    status: 'verified' | 'failed' | 'unchecked'
+    label: string
+    /** A check that was left out, e.g. credential revocation. */
+    caveat?: string
+}
 
 export interface PartyRef {
     id: string
@@ -131,8 +147,10 @@ export interface Party {
     id: string
     kind: 'key' | 'issuer'
     label: string
-    /** Convenient name derived from the chain or a certificate, when known. */
+    /** Convenient name derived from the chain, disclosed claims or a certificate, when known. */
     name?: string
+    /** Claims disclosed about this party when it is the subject of a credential. */
+    claims: DisclosedClaim[]
     appearances: PartyAppearance[]
     certificates: CertificateInfo[]
     identity?: PartyIdentity
