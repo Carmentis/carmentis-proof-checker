@@ -1,6 +1,7 @@
 import {
     Hash,
     Provider,
+    type JsonData,
     type MbRef,
     type ResolverHydrator,
     type ResolutionProofProofs,
@@ -9,6 +10,8 @@ import {
 export class ProofCheckerResolverHydrator implements ResolverHydrator {
     private readonly provider: Provider;
     private readonly proofs: ResolutionProofProofs;
+    /** Raw record data of every hydrated microblock, kept so tags inside it can be inspected. */
+    readonly hydrated: JsonData[] = [];
 
     constructor(provider: Provider, proofs: ResolutionProofProofs) {
         this.provider = provider;
@@ -32,6 +35,7 @@ export class ProofCheckerResolverHydrator implements ResolverHydrator {
             throw new Error(`microlblock not found in proof for '${link}'`);
         }
         const data = await appLedgerVb.importMicroblockProof(mb);
+        this.hydrated.push(data);
         return data;
     }
 }

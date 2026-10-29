@@ -59,20 +59,25 @@
             </div>
         </div>
 
-        <section
-            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-            aria-labelledby="resolved-data"
-        >
-            <div class="p-6">
-                <h3 id="resolved-data" class="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
-                    Resolved data
-                </h3>
-                <p class="mt-1 mb-4 max-w-prose text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                    Each value carries a label telling you how much it can be trusted. Select a label to see why.
-                </p>
-                <TrustedNode :node="report.root" />
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
+            <div class="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
+                <PartiesPanel :parties="report.parties" />
             </div>
-        </section>
+            <section
+                class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700"
+                aria-labelledby="resolved-data"
+            >
+                <div class="p-6">
+                    <h3 id="resolved-data" class="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+                        Resolved data
+                    </h3>
+                    <p class="mt-1 mb-4 max-w-prose text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                        Each block shows where its content comes from and how far it can be trusted. Select a label to see why.
+                    </p>
+                    <TrustedNode :node="report.root" />
+                </div>
+            </section>
+        </div>
     </div>
 </template>
 
@@ -91,6 +96,8 @@ import type { TrustReport } from '@/classes/trust/types'
 import TrustSummary from './resolution/TrustSummary.vue'
 import TrustFailures from './resolution/TrustFailures.vue'
 import TrustedNode from './resolution/TrustedNode.vue'
+import PartiesPanel from './resolution/PartiesPanel.vue'
+import { provideSelectedParty } from './resolution/partyContext'
 
 const props = defineProps<{
     proof: ResolutionProofWrapper
@@ -99,6 +106,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     reset: []
 }>()
+
+provideSelectedParty()
 
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
@@ -130,6 +139,7 @@ onMounted(async () => {
             resolvedJson: checkerResolvedJson,
             claimedResolvedJson: proof.resolvedJson,
             report: checkerResolver.getReport(),
+            hydrated: checkerResolverHydrator.hydrated,
         });
     } catch (error) {
         console.error('Proof verification error:', error);

@@ -23,6 +23,56 @@ export interface TrustEvidence {
     /** Set when the evidence turned out to be invalid when re-checked locally. */
     failed?: boolean
     details: { label: string; value: string }[]
+    /** The party (key or issuer) this evidence is attributed to, when known. */
+    party?: PartyRef
+    /** X.509 chain announced by the issuer of a credential, when any. */
+    certificates?: CertificateInfo[]
+}
+
+export type PartyRole = 'signer' | 'issuer' | 'author'
+
+export interface PartyRef {
+    id: string
+    kind: 'key' | 'issuer'
+    role: PartyRole
+}
+
+export interface CertificateInfo {
+    subject: string
+    commonName?: string
+    issuer: string
+    notBefore: string
+    notAfter: string
+    selfSigned: boolean
+}
+
+/** A group of sibling values that come from one tag (signature, presentation, link, ...). */
+export interface TrustCard {
+    type: 'card'
+    id: string
+    evidence: TrustEvidence[]
+    level: TrustLevel
+    children: TrustTreeNode[]
+    /** Dot paths of the values the card covers. */
+    paths: string[]
+}
+
+export type TrustSegment = { type: 'node'; node: TrustTreeNode } | TrustCard
+
+export interface PartyAppearance {
+    cardId: string
+    role: PartyRole
+    title: string
+    covers: string[]
+    level: TrustLevel
+}
+
+export interface Party {
+    id: string
+    kind: 'key' | 'issuer'
+    label: string
+    appearances: PartyAppearance[]
+    certificates: CertificateInfo[]
 }
 
 export interface TrustTreeNode {
@@ -36,6 +86,8 @@ export interface TrustTreeNode {
     own: TrustEvidence[]
     /** Every evidence applying to this path, own and inherited. */
     evidence: TrustEvidence[]
+    /** Children regrouped so that values produced by the same tag form one card. */
+    segments: TrustSegment[]
 }
 
 export interface UnresolvedTag {
@@ -54,6 +106,7 @@ export type Verdict = 'verified' | 'limited' | 'failed'
 
 export interface TrustReport {
     root: TrustTreeNode
+    parties: Party[]
     unresolved: UnresolvedTag[]
     mismatches: Mismatch[]
     counts: Record<TrustLevel, number>
