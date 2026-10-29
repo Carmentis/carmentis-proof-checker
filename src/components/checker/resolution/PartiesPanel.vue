@@ -39,32 +39,79 @@
                         </span>
                         <span class="min-w-0">
                             <span class="block truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                {{ party.certificates[0]?.commonName ?? (party.kind === 'issuer' ? 'Issuer' : 'Public key') }}
+                                {{ title(party) }}
                             </span>
-                            <span class="block break-all font-mono text-xs text-gray-500" :title="party.id">
+                            <span class="block break-all font-mono text-xs text-gray-500">
                                 {{ party.label }}
                             </span>
                         </span>
                     </button>
 
-                    <p class="mt-2 text-xs text-gray-500">Identity not established yet</p>
+                    <div v-if="party.identity" class="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                        <p v-if="party.identity.isOrganizationAccount" class="font-medium text-green-700 dark:text-green-300">
+                            <i class="pi pi-verified mr-1" aria-hidden="true"></i>Account of the organization
+                        </p>
+                        <p v-else-if="party.identity.organization">
+                            Pays the fees for {{ party.identity.organization.name }}
+                        </p>
+                        <p v-if="party.identity.organization">
+                            {{ [party.identity.organization.city, party.identity.organization.countryCode].filter(Boolean).join(', ') }}
+                            <a
+                                v-if="safeUrl(party.identity.organization.website)"
+                                :href="safeUrl(party.identity.organization.website)!"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="ml-1 underline decoration-dotted"
+                            >{{ party.identity.organization.website }}</a>
+                        </p>
+                        <p v-for="app in party.identity.applications" :key="app.id">
+                            <i class="pi pi-box mr-1" aria-hidden="true"></i>{{ app.name }}
+                        </p>
+                        <p v-if="party.identity.accountId" class="break-all font-mono text-gray-500" :title="party.identity.accountId">
+                            Account {{ party.identity.accountId.slice(0, 10) }}…
+                        </p>
+                    </div>
+                    <p v-else-if="!party.certificates.length" class="mt-2 text-xs text-gray-500">
+                        Identity not established
+                    </p>
 
-                    <ul class="mt-3 space-y-1.5">
-                        <li v-for="(item, i) in party.appearances" :key="i">
+                    <details class="mt-2">
+                        <summary class="flex min-h-8 cursor-pointer items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                            <i class="pi pi-key" aria-hidden="true"></i>
+                            {{ party.kind === 'issuer' ? 'Issuer identifier' : 'Public key' }}
+                        </summary>
+                        <p class="mt-1 max-h-32 overflow-y-auto break-all rounded-lg bg-gray-50 p-2 font-mono text-xs text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                            {{ party.id }}
+                        </p>
+                        <button
+                            type="button"
+                            class="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/20"
+                            @click="copy(party.id)"
+                        >
+                            <i class="pi" :class="copied === party.id ? 'pi-check' : 'pi-copy'" aria-hidden="true"></i>
+                            {{ copied === party.id ? 'Copied' : 'Copy' }}
+                        </button>
+                    </details>
+
+                    <ul class="mt-3 space-y-1">
+                        <li v-for="group in groups(party)" :key="group.role">
                             <button
                                 type="button"
-                                class="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                @click="scrollToCard(item.cardId)"
+                                class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                :title="group.count > 1 ? 'Select again to jump to the next one' : undefined"
+                                @click="jump(party, group)"
                             >
-                                <span class="mt-1 h-2 w-2 shrink-0 rounded-full" :class="LEVEL_DOT[item.level]"></span>
-                                <span class="min-w-0">
+                                <span class="h-2 w-2 shrink-0 rounded-full" :class="LEVEL_DOT[group.level]"></span>
+                                <span class="min-w-0 flex-1">
                                     <span class="font-medium text-gray-800 dark:text-gray-200">
-                                        {{ ROLE_LABEL[item.role] }}
+                                        {{ ROLE_LABEL[group.role] }}
                                     </span>
-                                    <span class="block break-all font-mono text-gray-500">
-                                        {{ describe(item.covers) }}
+                                    <span v-if="group.count > 1" class="text-gray-500"> · {{ group.count }}</span>
+                                    <span v-if="group.where.length" class="block truncate text-gray-500">
+                                        {{ group.where.join(', ') }}
                                     </span>
                                 </span>
+                                <i class="pi pi-arrow-down-right text-[0.65rem] text-gray-400" aria-hidden="true"></i>
                             </button>
                         </li>
                     </ul>
@@ -97,7 +144,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Party } from '@/classes/trust/types'
+import { ref } from 'vue'
+import type { Party, PartyRole, TrustLevel } from '@/classes/trust/types'
 import { LEVEL_DOT } from './levelStyles'
 import { scrollToCard, useSelectedParty } from './partyContext'
 
@@ -110,8 +158,66 @@ const ROLE_LABEL = {
 } as const
 
 const selected = useSelectedParty()
+const copied = ref<string | null>(null)
 
-function describe(paths: string[]) {
-    return paths.length > 3 ? `${paths.slice(0, 3).join(', ')} +${paths.length - 3} more` : paths.join(', ')
+async function copy(value: string) {
+    try {
+        await navigator.clipboard.writeText(value)
+        copied.value = value
+        setTimeout(() => (copied.value = null), 1500)
+    } catch {
+        copied.value = null
+    }
+}
+
+function title(party: Party) {
+    return party.name ?? (party.kind === 'issuer' ? 'Issuer' : 'Public key')
+}
+
+/** Website strings come from the chain: only ever link http(s) URLs. */
+function safeUrl(value: string) {
+    try {
+        const url = new URL(value.includes('://') ? value : `https://${value}`)
+        return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null
+    } catch {
+        return null
+    }
+}
+
+interface RoleGroup {
+    role: PartyRole
+    count: number
+    level: TrustLevel
+    cardIds: string[]
+    /** Names of the blocks involved (e.g. "sendingApproval"), not full paths. */
+    where: string[]
+}
+
+/** One row per role instead of one per card, with a short human hint of where it applies. */
+function groups(party: Party): RoleGroup[] {
+    const byRole = new Map<PartyRole, RoleGroup>()
+    for (const item of party.appearances) {
+        let group = byRole.get(item.role)
+        if (!group) {
+            group = { role: item.role, count: 0, level: item.level, cardIds: [], where: [] }
+            byRole.set(item.role, group)
+        }
+        group.count++
+        group.cardIds.push(item.cardId)
+        const parent = item.covers[0]?.split('.').slice(0, -1).pop()
+        if (parent && !group.where.includes(parent) && group.where.length < 3) group.where.push(parent)
+    }
+    return [...byRole.values()]
+}
+
+const cursor = new Map<string, number>()
+
+/** Jump to the next card of this role, wrapping around, and highlight the party. */
+function jump(party: Party, group: RoleGroup) {
+    const key = `${party.id}:${group.role}`
+    const index = (cursor.get(key) ?? -1) + 1
+    cursor.set(key, index % group.cardIds.length)
+    selected.value = party.id
+    scrollToCard(group.cardIds[index % group.cardIds.length]!)
 }
 </script>

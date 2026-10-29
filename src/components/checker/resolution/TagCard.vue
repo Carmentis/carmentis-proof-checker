@@ -27,17 +27,31 @@
                             + {{ extra.title }}
                         </span>
                     </h4>
-                    <p v-if="parties.length" class="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-gray-600 dark:text-gray-400">
+                    <p v-if="parties.length || subject" class="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-gray-600 dark:text-gray-400">
                         <template v-for="(ref, i) in parties" :key="ref.id + ref.role">
                             <span v-if="i > 0">·</span>
                             <span>{{ ROLE_VERB[ref.role] }}</span>
                             <button
                                 type="button"
-                                class="rounded-md px-1 font-mono text-gray-800 underline decoration-dotted underline-offset-2 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                class="rounded-md px-1 text-gray-800 underline decoration-dotted underline-offset-2 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                :class="names[ref.id] ? 'font-medium' : 'font-mono'"
                                 :title="ref.id"
                                 @click="selected = selected === ref.id ? null : ref.id"
                             >
-                                {{ shorten(ref.id) }}
+                                {{ names[ref.id] ?? shorten(ref.id) }}
+                            </button>
+                        </template>
+                        <template v-if="subject">
+                            <span v-if="parties.length">·</span>
+                            <span>to</span>
+                            <button
+                                type="button"
+                                class="rounded-md px-1 text-gray-800 underline decoration-dotted underline-offset-2 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                :class="names[subject] ? 'font-medium' : 'font-mono'"
+                                :title="subject"
+                                @click="selected = selected === subject ? null : subject"
+                            >
+                                {{ names[subject] ?? shorten(subject) }}
                             </button>
                         </template>
                     </p>
@@ -93,7 +107,7 @@
 import { computed, ref } from 'vue'
 import { LEVEL_META, type EvidenceKind, type TrustCard } from '@/classes/trust/types'
 import { LEVEL_BADGE } from './levelStyles'
-import { useSelectedParty } from './partyContext'
+import { usePartyNames, useSelectedParty } from './partyContext'
 import EvidenceCard from './EvidenceCard.vue'
 
 const props = defineProps<{ card: TrustCard }>()
@@ -109,14 +123,19 @@ const KIND_ICON: Record<EvidenceKind, string> = {
 const ROLE_VERB = { signer: 'Signed by', issuer: 'Issued by', author: 'Recorded by' } as const
 
 const selected = useSelectedParty()
+const names = usePartyNames()
 const primary = computed(() => props.card.evidence[0]!)
 const parties = computed(() => props.card.evidence.flatMap((e) => (e.party ? [e.party] : [])))
-const highlighted = computed(() => selected.value !== null && parties.value.some((p) => p.id === selected.value))
+const subject = computed(() => props.card.evidence.find((e) => e.subject)?.subject)
+const highlighted = computed(
+    () =>
+        selected.value !== null &&
+        (parties.value.some((p) => p.id === selected.value) || subject.value === selected.value),
+)
 const summary = computed(() => props.card.paths.length === 1 ? props.card.paths[0] : `${props.card.paths.length} values`)
 
 const why = ref(false)
-// Certificates are long and rarely the point: keep them closed until asked for.
-const open = ref(props.card.evidence.every((e) => e.kind !== 'certificate'))
+const open = ref(true)
 
 function shorten(id: string) {
     return id.length > 24 ? `${id.slice(0, 14)}…${id.slice(-6)}` : id

@@ -27,6 +27,63 @@ export interface TrustEvidence {
     party?: PartyRef
     /** X.509 chain announced by the issuer of a credential, when any. */
     certificates?: CertificateInfo[]
+    /** Where on-chain evidence was read from. */
+    origin?: MicroblockOrigin
+    /** Who a credential or presentation was issued to (its `sub` claim). */
+    subject?: string
+}
+
+export interface MicroblockOrigin {
+    vbId: string
+    height: number
+}
+
+export interface ApplicationInfo {
+    id: string
+    name: string
+    homepageUrl: string
+    logoUrl: string
+    description: string
+}
+
+export interface OrganizationInfo {
+    id: string
+    name: string
+    website: string
+    city: string
+    countryCode: string
+    accountId: string
+}
+
+/** What the chain says about the application ledger a microblock belongs to. */
+export interface VbIdentity {
+    application?: ApplicationInfo
+    organization?: OrganizationInfo
+}
+
+export interface DistinguishedNameEntry {
+    name: string
+    value: string
+}
+
+/** A certificate found in the resolved data, ready to be displayed. */
+export interface CertificateView {
+    commonName?: string
+    subject: DistinguishedNameEntry[]
+    issuer: DistinguishedNameEntry[]
+    notBefore: string
+    notAfter: string
+    serialNumber: string
+    selfSigned: boolean
+}
+
+export interface PartyIdentity {
+    /** Account that paid for the microblocks this key anchored. */
+    accountId?: string
+    /** True when that account is the one declared by the organization. */
+    isOrganizationAccount: boolean
+    organization?: OrganizationInfo
+    applications: ApplicationInfo[]
 }
 
 export type PartyRole = 'signer' | 'issuer' | 'author'
@@ -53,6 +110,8 @@ export interface TrustCard {
     evidence: TrustEvidence[]
     level: TrustLevel
     children: TrustTreeNode[]
+    /** The card content, itself grouped: a nested tag (e.g. a certificate in a section) becomes a card inside. */
+    segments: TrustSegment[]
     /** Dot paths of the values the card covers. */
     paths: string[]
 }
@@ -65,14 +124,18 @@ export interface PartyAppearance {
     title: string
     covers: string[]
     level: TrustLevel
+    origin?: MicroblockOrigin
 }
 
 export interface Party {
     id: string
     kind: 'key' | 'issuer'
     label: string
+    /** Convenient name derived from the chain or a certificate, when known. */
+    name?: string
     appearances: PartyAppearance[]
     certificates: CertificateInfo[]
+    identity?: PartyIdentity
 }
 
 export interface TrustTreeNode {
@@ -88,6 +151,8 @@ export interface TrustTreeNode {
     evidence: TrustEvidence[]
     /** Children regrouped so that values produced by the same tag form one card. */
     segments: TrustSegment[]
+    /** Set when this node holds X.509 certificate(s), so it can be shown as certificate cards. */
+    certificates?: CertificateView[]
 }
 
 export interface UnresolvedTag {
@@ -107,6 +172,8 @@ export type Verdict = 'verified' | 'limited' | 'failed'
 export interface TrustReport {
     root: TrustTreeNode
     parties: Party[]
+    /** Identity of the application ledger behind each on-chain origin, by virtual blockchain id. */
+    vbIdentities: Record<string, VbIdentity>
     unresolved: UnresolvedTag[]
     mismatches: Mismatch[]
     counts: Record<TrustLevel, number>

@@ -59,9 +59,31 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
+        <div
+            class="grid grid-cols-1 gap-6 lg:grid-cols-[var(--parties-width)_1.25rem_minmax(0,1fr)] lg:items-start lg:gap-0"
+            :class="{ 'select-none': panel.dragging.value }"
+            :style="{ '--parties-width': `${panel.width.value}px` }"
+        >
             <div class="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
                 <PartiesPanel :parties="report.parties" />
+            </div>
+            <!-- Drag to resize the parties column; arrow keys work too, double-click resets. -->
+            <div
+                class="group hidden cursor-col-resize touch-none justify-center self-stretch lg:flex"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize the parties panel"
+                tabindex="0"
+                :aria-valuenow="panel.width.value"
+                :aria-valuemin="panel.min"
+                :aria-valuemax="panel.max"
+                v-on="panel.handlers"
+                @dblclick="panel.reset()"
+            >
+                <span
+                    class="my-2 w-1 rounded-full bg-transparent transition-colors group-hover:bg-gray-300 group-focus-visible:bg-blue-500 motion-reduce:transition-none dark:group-hover:bg-gray-600"
+                    :class="{ 'bg-blue-500! dark:bg-blue-400!': panel.dragging.value }"
+                ></span>
             </div>
             <section
                 class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700"
@@ -96,8 +118,9 @@ import type { TrustReport } from '@/classes/trust/types'
 import TrustSummary from './resolution/TrustSummary.vue'
 import TrustFailures from './resolution/TrustFailures.vue'
 import TrustedNode from './resolution/TrustedNode.vue'
+import { useResizablePanel } from '@/composables/useResizablePanel'
 import PartiesPanel from './resolution/PartiesPanel.vue'
-import { provideSelectedParty } from './resolution/partyContext'
+import { providePartyNames, provideSelectedParty, provideVbIdentities } from './resolution/partyContext'
 
 const props = defineProps<{
     proof: ResolutionProofWrapper
@@ -108,6 +131,10 @@ const emit = defineEmits<{
 }>()
 
 provideSelectedParty()
+const vbIdentities = provideVbIdentities()
+const partyNames = providePartyNames()
+
+const panel = useResizablePanel({ storageKey: 'parties-panel-width', initial: 320, min: 240, max: 640 })
 
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
@@ -134,13 +161,19 @@ onMounted(async () => {
         const checkerResolverHydrator = new ProofCheckerResolverHydrator(provider, proof.proofs);
         const checkerResolver = new Resolver(provider, checkerResolverHydrator);
         const checkerResolvedJson = await checkerResolver.resolveFromOutput(proof);
-        report.value = await analyzeProof({
+        const analyzed = await analyzeProof({
             linkedJson: proof.linkedJson,
             resolvedJson: checkerResolvedJson,
             claimedResolvedJson: proof.resolvedJson,
             report: checkerResolver.getReport(),
             hydrated: checkerResolverHydrator.hydrated,
+            provider,
         });
+        vbIdentities.value = analyzed.vbIdentities;
+        partyNames.value = Object.fromEntries(
+            analyzed.parties.flatMap((party) => (party.name ? [[party.id, party.name]] : [])),
+        );
+        report.value = analyzed;
     } catch (error) {
         console.error('Proof verification error:', error);
         errorMessage.value =

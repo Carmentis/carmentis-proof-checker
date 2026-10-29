@@ -34,6 +34,12 @@
         </div>
     </div>
 
+    <!-- Certificates found in the data: shown as certificate cards instead of raw JSON -->
+    <div v-else-if="node.certificates" class="py-1">
+        <p class="mb-1 font-mono text-sm font-semibold text-gray-900 dark:text-gray-100">{{ node.key }}</p>
+        <CertificateChainCard :certificates="node.certificates" />
+    </div>
+
     <!-- Object or array -->
     <div v-else class="py-1">
         <button
@@ -57,17 +63,7 @@
             v-if="expanded"
             :class="node.key !== null ? 'ml-1.5 border-l-2 border-gray-200 pl-4 dark:border-gray-700' : ''"
         >
-            <template v-for="segment in node.segments" :key="segment.type === 'card' ? segment.id : String(segment.node.key)">
-                <TagCard v-if="segment.type === 'card'" :card="segment">
-                    <TrustedNode
-                        v-for="child in segment.children"
-                        :key="String(child.key)"
-                        :node="child"
-                        :parent-level="segment.level"
-                    />
-                </TagCard>
-                <TrustedNode v-else :node="segment.node" :parent-level="parentLevel" />
-            </template>
+            <SegmentList :segments="node.segments" :parent-level="parentLevel" />
         </div>
     </div>
 </template>
@@ -77,7 +73,8 @@ import { computed, ref } from 'vue'
 import { LEVEL_META, type TrustLevel, type TrustTreeNode } from '@/classes/trust/types'
 import { LEVEL_BADGE } from './levelStyles'
 import EvidenceCard from './EvidenceCard.vue'
-import TagCard from './TagCard.vue'
+import SegmentList from './SegmentList.vue'
+import CertificateChainCard from './CertificateChainCard.vue'
 
 const props = defineProps<{ node: TrustTreeNode; parentLevel?: TrustLevel | null }>()
 

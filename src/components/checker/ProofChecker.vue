@@ -15,19 +15,19 @@
         </div>
 
         <!-- Proof upload / viewers -->
-        <div v-if="proof instanceof AppLedgerProofWrapper" class="space-y-6">
+        <div v-if="proof instanceof AppLedgerProofWrapper" class="space-y-6 mx-auto max-w-4xl">
             <AppLedgerProofViewer :proof="proof" @reset="proof = undefined" />
         </div>
-        <div v-else-if="proof instanceof AccountProofWrapper" class="space-y-6">
+        <div v-else-if="proof instanceof AccountProofWrapper" class="space-y-6 mx-auto max-w-4xl">
             <AccountProofViewer :proof="proof" @reset="proof = undefined" />
         </div>
-        <div v-else-if="proof instanceof MicroblockProofWrapper" class="space-y-6">
+        <div v-else-if="proof instanceof MicroblockProofWrapper" class="space-y-6 mx-auto max-w-4xl">
             <MicroblockProofViewer :proof="proof" @reset="proof = undefined" />
         </div>
         <div v-else-if="proof instanceof ResolutionProofWrapper" class="space-y-6">
             <ResolutionProofViewer :proof="proof" @reset="proof = undefined" />
         </div>
-        <div v-else>
+        <div v-else class="mx-auto max-w-4xl">
             <ProofCheckerUpload @upload="onUpload" />
         </div>
     </div>

@@ -1,14 +1,18 @@
 import {
     ResolverNodeMapper,
     ResolverPath,
-    SdJwt,
     X509,
     type JsonObject,
     type MappedNode,
+    type Provider,
     type ResolverReport,
 } from '@cmts-dev/carmentis-sdk-core'
+import { identifyParties } from './PartyIdentifier'
+import { checkSdJwt, type SdJwtCheck } from './SdJwtChecker'
 import type {
     CertificateInfo,
+    CertificateView,
+    DistinguishedNameEntry,
     EvidenceKind,
     Mismatch,
     Party,
@@ -34,6 +38,17 @@ const TAG_NODE_TYPES: Record<string, string[]> = {
     __certificate__: ['certificate'],
 }
 
+/** The raw tag key that stands in the data for a node of a given type, until the tag is resolved. */
+const TYPE_TAG: Record<string, string> = {
+    microblock: '__link__',
+    section: '__link__',
+    signature: '__signature__',
+    vc: '__vc__',
+    vp: '__vp__',
+    digestData: '__digest__',
+    certificate: '__certificate__',
+}
+
 const MAX_MISMATCHES = 20
 
 export interface AnalyzerInput {
@@ -45,6 +60,8 @@ export interface AnalyzerInput {
     report: ResolverReport
     /** Raw record data of the microblocks reached through links (tags still unresolved inside). */
     hydrated?: unknown[]
+    /** When given, the anchoring parties are identified through the chain. */
+    provider?: Provider
 }
 
 interface SignatureTag {
@@ -53,16 +70,13 @@ interface SignatureTag {
     payload?: unknown
 }
 
-interface CredentialCheck {
-    valid: boolean
-    issuer?: string
-    claims: Record<string, unknown>
-    validFrom?: Date | null
-    validUntil?: Date | null
+interface CredentialCheck extends SdJwtCheck {
     certificates: CertificateInfo[]
 }
 
 interface Context {
+    /** Keys, per parent path, that carry a credential node: they all come from the same credential. */
+    vcKeysByParent: Map<string, string[]>
     resolvedJson: unknown
     signatures: SignatureTag[]
     credentials: CredentialCheck[]
@@ -145,22 +159,9 @@ async function collectTags(sources: unknown[]) {
             if (typeof jwt !== 'string' || seenJwts.has(jwt)) continue
             seenJwts.add(jwt)
             jobs.push(
-                (async () => {
-                    const sdJwt = new SdJwt(jwt)
-                    try {
-                        const decoded = await sdJwt.decode()
-                        credentials.push({
-                            valid: decoded.valid,
-                            issuer: await sdJwt.getIssuer().catch(() => undefined),
-                            claims: decoded.claims,
-                            validFrom: decoded.info.validFrom,
-                            validUntil: decoded.info.validUntil,
-                            certificates: await describeCertificates(decoded.issuerJwk?.x5c),
-                        })
-                    } catch {
-                        credentials.push({ valid: false, claims: {}, certificates: [] })
-                    }
-                })(),
+                checkSdJwt(jwt).then(async (check) => {
+                    credentials.push({ ...check, certificates: await describeCertificates(check.issuerJwk?.x5c) })
+                }),
             )
         }
         for (const child of Object.values(value)) visit(child)
@@ -190,6 +191,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                     { label: 'Microblock hash', value: node.hash },
                 ],
                 party: { id: node.publicKey, kind: 'key', role: 'author' },
+                origin: { vbId: node.vbId, height: node.height },
             }
         case 'section':
             return {
@@ -205,6 +207,7 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
                     { label: 'Microblock hash', value: node.microblockHash },
                 ],
                 party: { id: node.publicKey, kind: 'key', role: 'author' },
+                origin: { vbId: node.vbId, height: node.height },
             }
         case 'signature': {
             const candidates = ctx.signatures.filter((s) => s.publicKey === node.publicKey)
@@ -244,28 +247,41 @@ function toEvidence(mapped: MappedNode, ctx: Context): TrustEvidence {
         case 'vc':
         case 'vp': {
             const title = node.type === 'vc' ? 'Verifiable credential' : 'Verifiable presentation'
-            const candidates = ctx.credentials.filter((c) => sameValue(c.claims[String(key)], value))
-            const failed = candidates.length > 0 && candidates.every((c) => !c.valid)
-            const match = candidates.find((c) => c.valid) ?? candidates[0]
+            // All keys a tag produced share one credential: pick the one matching most of them, so a key
+            // whose value happens to be identical in two credentials (iss, vct...) cannot split the card.
+            const parent = mapped.path.slice(0, -1)
+            const siblingKeys = ctx.vcKeysByParent.get(JSON.stringify(parent)) ?? [String(key)]
+            const score = (c: CredentialCheck) =>
+                siblingKeys.filter((k) => sameValue(c.claims[k], getAt(ctx.resolvedJson, [...parent, k]))).length
+            const match = ctx.credentials
+                .filter((c) => score(c) > 0)
+                .sort((a, b) => score(b) - score(a) || Number(b.valid) - Number(a.valid))[0]
+            const failed = match !== undefined && !match.valid
             const details: { label: string; value: string }[] = []
             if (match?.issuer) details.push({ label: 'Issuer', value: match.issuer })
+            if (match?.subject) details.push({ label: 'Subject', value: match.subject })
             const validFrom = formatDate(match?.validFrom)
             const validUntil = formatDate(match?.validUntil)
             if (validFrom) details.push({ label: 'Valid from', value: validFrom })
             if (validUntil) details.push({ label: 'Valid until', value: validUntil })
+            if (match?.keyBinding === 'valid') details.push({ label: 'Holder key binding', value: 'Valid' })
+            if (match?.hasStatus) details.push({ label: 'Revocation status', value: 'Not verified' })
             return {
                 ...base,
                 kind: 'credential',
                 title,
                 failed,
                 reason: failed
-                    ? 'The issuer signature of this credential did not verify when checked locally.'
+                    ? match?.problem === 'key-binding'
+                        ? 'The holder key binding of this presentation did not verify when checked locally.'
+                        : 'The issuer signature of this credential did not verify when checked locally.'
                     : match
-                      ? 'These are claims disclosed by an SD-JWT. The issuer signature was checked locally and is valid.'
+                      ? `These are claims disclosed by an SD-JWT. The issuer signature${match.keyBinding === 'valid' ? ' and the holder key binding were' : ' was'} checked locally and ${match.keyBinding === 'valid' ? 'are' : 'is'} valid.${match.hasStatus ? ' The revocation status was not verified, so this credential may have been revoked.' : ''}`
                       : 'These are claims disclosed by an SD-JWT. The issuer signature could not be re-checked locally.',
                 details,
                 party: match?.issuer ? { id: match.issuer, kind: 'issuer', role: 'issuer' } : undefined,
                 certificates: match?.certificates,
+                subject: match?.subject,
             }
         }
         case 'certificate':
@@ -350,25 +366,32 @@ function findUnresolvedTags(linkedJson: unknown, report: ResolverReport): Unreso
  * The SDK attaches a resolution node to every key a tag produced, not to the object holding the
  * tag. Siblings sharing the same evidence therefore come from one tag: group them into a card.
  */
-function toSegments(children: TrustTreeNode[], nextId: () => string): TrustSegment[] {
+function toSegments(children: TrustTreeNode[], nextId: () => string, layer = 0): TrustSegment[] {
     const segments: TrustSegment[] = []
     const cards = new Map<string, TrustCard>()
     for (const child of children) {
-        if (child.own.length === 0) {
+        // Evidence is ordered outermost first: layer N is the Nth tag wrapping this value.
+        const evidence = child.own[layer]
+        if (!evidence) {
             segments.push({ type: 'node', node: child })
             continue
         }
-        const signature = JSON.stringify(
-            child.own.map((e) => [e.kind, e.title, e.details, e.party?.id, e.failed ?? false]),
-        )
+        const signature = JSON.stringify([
+            evidence.kind,
+            evidence.title,
+            evidence.details,
+            evidence.party?.id,
+            evidence.failed ?? false,
+        ])
         let card = cards.get(signature)
         if (!card) {
             card = {
                 type: 'card',
                 id: nextId(),
-                evidence: child.own,
+                evidence: [evidence],
                 level: child.level,
                 children: [],
+                segments: [],
                 paths: [],
             }
             cards.set(signature, card)
@@ -377,7 +400,50 @@ function toSegments(children: TrustTreeNode[], nextId: () => string): TrustSegme
         card.children.push(child)
         card.paths.push(child.path.join('.'))
     }
+    for (const card of cards.values()) card.segments = toSegments(card.children, nextId, layer + 1)
     return segments
+}
+
+function toDistinguishedName(value: unknown): DistinguishedNameEntry[] {
+    if (!isRecord(value)) return []
+    return Object.values(value).flatMap((entry) =>
+        isRecord(entry) && Array.isArray(entry.values)
+            ? [{ name: String(entry.shortName ?? ''), value: entry.values.join(', ') }]
+            : [],
+    )
+}
+
+function toCertificateView(value: unknown): CertificateView | null {
+    if (!isRecord(value) || !isRecord(value.info) || !isRecord(value.subject)) return null
+    const subject = toDistinguishedName(value.subject)
+    return {
+        commonName: subject.find((e) => e.name === 'CN')?.value,
+        subject,
+        issuer: toDistinguishedName(value.issuer),
+        notBefore: String(value.info.notBefore ?? ''),
+        notAfter: String(value.info.notAfter ?? ''),
+        serialNumber: String(value.info.serialNumber ?? ''),
+        selfSigned: value.info.selfSigned === true,
+    }
+}
+
+/** `x509Chain` (array) and `x509` (object) are the shapes certificates take in resolved JSON. */
+function findCertificates(key: string | number | null, value: unknown): CertificateView[] | undefined {
+    const candidates = key === 'x509Chain' && Array.isArray(value) ? value : key === 'x509' ? [value] : null
+    if (!candidates || candidates.length === 0) return undefined
+    const views = candidates.map(toCertificateView)
+    return views.every((v): v is CertificateView => v !== null) ? views : undefined
+}
+
+/** Prefer what the chain tells us (organization), then a certificate subject. */
+function nameOf(party: Party): string | undefined {
+    if (party.identity?.isOrganizationAccount && party.identity.organization) {
+        return party.identity.organization.name
+    }
+    const commonName = party.certificates[0]?.commonName
+    if (commonName) return commonName
+    if (party.identity?.organization) return `Key of ${party.identity.organization.name}`
+    return undefined
 }
 
 function shortId(id: string) {
@@ -415,9 +481,10 @@ function collectParties(root: TrustTreeNode): Party[] {
                 title: evidence.title,
                 covers: segment.paths,
                 level: segment.level,
+                origin: evidence.origin,
             })
         }
-        segment.children.forEach(visitNode)
+        segment.segments.forEach(visitSegment)
     }
     visitNode(root)
     return [...parties.values()]
@@ -429,7 +496,14 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
         input.linkedJson,
         ...(input.hydrated ?? []),
     ])
-    const ctx: Context = { resolvedJson: input.resolvedJson, signatures, credentials }
+    const vcKeysByParent = new Map<string, string[]>()
+    for (const [serialized, nodes] of input.report.nodes) {
+        if (!nodes.some((n) => n.type === 'vc' || n.type === 'vp')) continue
+        const path = JSON.parse(serialized) as Path
+        const parent = JSON.stringify(path.slice(0, -1))
+        vcKeysByParent.set(parent, [...(vcKeysByParent.get(parent) ?? []), String(path[path.length - 1])])
+    }
+    const ctx: Context = { vcKeysByParent, resolvedJson: input.resolvedJson, signatures, credentials }
     const counts: Record<TrustLevel, number> = {
         untrusted: 0,
         authenticated: 0,
@@ -441,11 +515,40 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
     let cardCount = 0
     const nextId = () => `trust-card-${++cardCount}`
 
-    const evidenceAt = (path: Path): TrustEvidence[] =>
-        mapper
-            .map(new ResolverPath([...path]))
-            .sort((a, b) => a.depth - b.depth)
-            .map((m) => toEvidence(m, ctx))
+    /**
+     * A tag nested in the output of another one (a certificate inside a linked section, say) leaves the
+     * outer node on the raw tag key, which is replaced by the inner output. Recover those outer nodes so
+     * the inner values are wrapped by them.
+     */
+    const outerNodesOf = (parent: Path, innerTypes: string[]): MappedNode[] => {
+        const outer: MappedNode[] = []
+        let types = innerTypes
+        for (let guard = 0; guard < 4 && types.length > 0; guard++) {
+            const found = types.flatMap((type) => {
+                const tag = TYPE_TAG[type]
+                return tag ? mapper.map(new ResolverPath([...parent, tag])).filter((m) => m.depth === 0) : []
+            })
+            if (found.length === 0) break
+            outer.unshift(...found)
+            types = found.map((m) => m.node.type as string)
+        }
+        return outer
+    }
+
+    const evidenceAt = (path: Path): TrustEvidence[] => {
+        const mapped = mapper.map(new ResolverPath([...path])).sort((a, b) => a.depth - b.depth)
+        // Wrapping nodes of every node that applies here; for values deeper than the tag they are inherited too.
+        const seen = new Set<string>()
+        const outer = mapped
+            .flatMap((m) =>
+                outerNodesOf(m.path.slice(0, -1), [m.node.type as string]).map((o) => ({ ...o, depth: m.depth })),
+            )
+            .filter((o) => {
+                const id = JSON.stringify([o.path, o.node])
+                return !seen.has(id) && seen.add(id)
+            })
+        return [...outer, ...mapped].map((m) => toEvidence(m, ctx))
+    }
 
     const build = (value: unknown, path: Path, key: string | number | null): TrustTreeNode => {
         const evidence = evidenceAt(path)
@@ -466,6 +569,7 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
                     own,
                     evidence,
                     segments: toSegments(children, nextId),
+                    certificates: findCertificates(key, value),
                 }
             }
         }
@@ -484,5 +588,9 @@ export async function analyzeProof(input: AnalyzerInput): Promise<TrustReport> {
     if (counts.untrusted > 0) verdict = 'limited'
     if (mismatches.length > 0 || unresolved.length > 0 || counts.failed > 0) verdict = 'failed'
 
-    return { root, parties: collectParties(root), unresolved, mismatches, counts, totalLeaves, verdict }
+    const parties = collectParties(root)
+    const vbIdentities = input.provider ? await identifyParties(parties, input.provider) : {}
+    for (const party of parties) party.name = nameOf(party)
+
+    return { root, parties, vbIdentities, unresolved, mismatches, counts, totalLeaves, verdict }
 }
