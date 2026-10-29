@@ -47,42 +47,56 @@
                         </span>
                     </button>
 
-                    <div v-if="party.identity" class="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                        <p v-if="party.identity.isOrganizationAccount" class="font-medium text-green-700 dark:text-green-300">
-                            <i class="pi pi-verified mr-1" aria-hidden="true"></i>Account of the organization
-                        </p>
-                        <p v-else-if="party.identity.organization">
-                            Pays the fees for {{ party.identity.organization.name }}
-                        </p>
-                        <p v-if="party.identity.organization">
-                            {{ [party.identity.organization.city, party.identity.organization.countryCode].filter(Boolean).join(', ') }}
-                            <a
-                                v-if="safeUrl(party.identity.organization.website)"
-                                :href="safeUrl(party.identity.organization.website)!"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="ml-1 underline decoration-dotted"
-                            >{{ party.identity.organization.website }}</a>
-                        </p>
-                        <p v-for="app in party.identity.applications" :key="app.id">
-                            <i class="pi pi-box mr-1" aria-hidden="true"></i>{{ app.name }}
-                        </p>
-                        <p v-if="party.identity.accountId" class="break-all font-mono text-gray-500" :title="party.identity.accountId">
-                            Account {{ party.identity.accountId.slice(0, 10) }}…
-                        </p>
-                    </div>
-                    <p v-else-if="!party.certificates.length && !party.claims.length" class="mt-2 text-xs text-gray-500">
+                    <p
+                        v-if="party.identity?.isOrganizationAccount"
+                        class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-800 ring-1 ring-inset ring-green-200 dark:bg-green-900/20 dark:text-green-300 dark:ring-green-800/60"
+                    >
+                        <i class="pi pi-verified text-[0.7rem]" aria-hidden="true"></i>Account of the organization
+                    </p>
+                    <p
+                        v-else-if="party.identity?.organization"
+                        class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                    >
+                        Pays the fees for {{ party.identity.organization.name }}
+                    </p>
+                    <p v-else-if="!party.certificates.length && !party.claims.length" class="mt-3 text-xs text-gray-500">
                         Identity not established
                     </p>
 
-                    <dl v-if="party.claims.length" class="mt-2 space-y-0.5 text-xs">
-                        <div v-for="claim in party.claims" :key="claim.name" class="flex gap-2">
-                            <dt class="w-24 shrink-0 truncate text-gray-500" :title="claim.name">{{ claim.name }}</dt>
-                            <dd class="min-w-0 break-words text-gray-800 dark:text-gray-200">{{ claim.value }}</dd>
-                        </div>
+                    <dl
+                        v-if="rows(party).length"
+                        class="mt-3 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-gray-100 pt-3 text-xs dark:border-gray-700"
+                    >
+                        <template v-for="row in rows(party)" :key="row.label + row.items[0]?.text">
+                            <dt class="pt-px font-medium uppercase tracking-wide text-gray-500">{{ row.label }}</dt>
+                            <dd class="min-w-0 space-y-0.5 break-words text-gray-800 dark:text-gray-200">
+                                <div v-for="item in row.items" :key="item.text" class="flex items-center gap-1.5">
+                                    <a
+                                        v-if="item.href"
+                                        :href="item.href"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="inline-flex min-w-0 items-center gap-1 text-blue-700 underline decoration-dotted underline-offset-2 hover:decoration-solid dark:text-blue-300"
+                                    >
+                                        <span class="truncate">{{ item.text }}</span>
+                                        <i class="pi pi-external-link text-[0.6rem]" aria-hidden="true"></i>
+                                    </a>
+                                    <span v-else :class="item.mono ? 'font-mono' : ''" :title="item.copy">{{ item.text }}</span>
+                                    <button
+                                        v-if="item.copy"
+                                        type="button"
+                                        class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        :aria-label="`Copy ${row.label.toLowerCase()}`"
+                                        @click="copy(item.copy)"
+                                    >
+                                        <i class="pi text-[0.7rem]" :class="copied === item.copy ? 'pi-check' : 'pi-copy'" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </dd>
+                        </template>
                     </dl>
 
-                    <details class="mt-2">
+                    <details class="mt-3 border-t border-gray-100 pt-2 dark:border-gray-700">
                         <summary class="flex min-h-8 cursor-pointer items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
                             <i class="pi pi-key" aria-hidden="true"></i>
                             {{ party.kind === 'issuer' ? 'Issuer identifier' : 'Public key' }}
@@ -100,7 +114,7 @@
                         </button>
                     </details>
 
-                    <ul class="mt-3 space-y-1">
+                    <ul class="mt-2 space-y-1 border-t border-gray-100 pt-2 dark:border-gray-700">
                         <li v-for="group in groups(party)" :key="group.role">
                             <button
                                 type="button"
@@ -176,6 +190,56 @@ async function copy(value: string) {
     } catch {
         copied.value = null
     }
+}
+
+interface Row {
+    label: string
+    items: { text: string; href?: string; mono?: boolean; copy?: string }[]
+}
+
+/** "given_name" -> "Given name" */
+function humanize(name: string) {
+    const text = name.replace(/[_-]+/g, ' ').trim()
+    return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+function host(url: string) {
+    try {
+        return new URL(url).host
+    } catch {
+        return url
+    }
+}
+
+/** Everything known about a party as label / value rows, so the card reads as one tidy table. */
+function rows(party: Party): Row[] {
+    const out: Row[] = []
+    const identity = party.identity
+    const organization = identity?.organization
+    if (organization) {
+        if (!identity.isOrganizationAccount) out.push({ label: 'Organization', items: [{ text: organization.name }] })
+        const place = [organization.city, organization.countryCode].filter(Boolean).join(', ')
+        if (place) out.push({ label: 'Location', items: [{ text: place }] })
+        const website = safeUrl(organization.website)
+        if (website) out.push({ label: 'Website', items: [{ text: host(website), href: website }] })
+    }
+    if (identity?.applications.length) {
+        out.push({
+            label: identity.applications.length > 1 ? 'Applications' : 'Application',
+            items: identity.applications.map((app) => {
+                const href = safeUrl(app.homepageUrl)
+                return href ? { text: app.name, href } : { text: app.name }
+            }),
+        })
+    }
+    if (identity?.accountId) {
+        out.push({
+            label: 'Account',
+            items: [{ text: `${identity.accountId.slice(0, 8)}…${identity.accountId.slice(-6)}`, mono: true, copy: identity.accountId }],
+        })
+    }
+    for (const claim of party.claims) out.push({ label: humanize(claim.name), items: [{ text: claim.value }] })
+    return out
 }
 
 function title(party: Party) {
