@@ -8,18 +8,35 @@
     >
         <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
             <div class="min-w-0 flex-1 text-sm">
-                <i v-if="mismatch" class="pi pi-times-circle mr-1.5 text-red-600 dark:text-red-400" aria-hidden="true"></i>
-                <span
-                    v-if="node.key !== null"
-                    class="mr-2 font-mono font-semibold"
-                    :class="mismatch ? 'text-red-800 dark:text-red-300' : 'text-gray-900 dark:text-gray-100'"
-                >
-                    {{ node.key }}
-                </span>
-                <span
-                    class="break-all font-mono"
-                    :class="mismatch ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300'"
-                >{{ display }}</span>
+                <div class="flex min-w-0 items-baseline gap-2">
+                    <i v-if="mismatch" class="pi pi-times-circle shrink-0 self-center text-red-600 dark:text-red-400" aria-hidden="true"></i>
+                    <span
+                        v-if="node.key !== null"
+                        class="shrink-0 font-mono font-semibold"
+                        :class="mismatch ? 'text-red-800 dark:text-red-300' : 'text-gray-900 dark:text-gray-100'"
+                    >
+                        {{ node.key }}
+                    </span>
+                    <!-- Long values (keys, tokens) stay on one line until asked for. -->
+                    <span
+                        class="min-w-0 font-mono"
+                        :class="[
+                            isLong && !valueOpen ? 'truncate' : 'break-all',
+                            mismatch ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300',
+                        ]"
+                        :title="isLong && !valueOpen ? display : undefined"
+                    >{{ display }}</span>
+                    <button
+                        v-if="isLong"
+                        type="button"
+                        class="inline-flex min-h-6 shrink-0 items-center gap-1 self-center rounded-md px-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/20"
+                        :aria-expanded="valueOpen"
+                        @click="valueOpen = !valueOpen"
+                    >
+                        {{ valueOpen ? 'Collapse' : 'Expand' }}
+                        <i class="pi text-[0.6rem]" :class="valueOpen ? 'pi-chevron-up' : 'pi-chevron-down'" aria-hidden="true"></i>
+                    </button>
+                </div>
                 <p v-if="mismatch" class="mt-1 text-xs text-red-700 dark:text-red-300">
                     Does not match the file, which claims
                     <code class="break-all font-mono font-semibold">{{ claimed }}</code>
@@ -112,7 +129,11 @@ const claimed = computed(() => {
 })
 
 const open = ref(false)
+const valueOpen = ref(false)
 const expanded = ref(true)
+
+/** Past this length a value no longer reads as a single line of text. */
+const LONG_VALUE = 64
 
 const display = computed(() => {
     const value = props.node.value
@@ -121,4 +142,6 @@ const display = computed(() => {
     if (value !== null && typeof value === 'object') return '{}'
     return String(value)
 })
+
+const isLong = computed(() => display.value.length > LONG_VALUE)
 </script>
