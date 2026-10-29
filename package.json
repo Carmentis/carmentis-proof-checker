@@ -12,7 +12,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
-    "@cmts-dev/carmentis-sdk-core": "^1.11.3",
+    "@cmts-dev/carmentis-sdk-core": "^1.11.4",
     "@cmts-dev/carmentis-sdk-vc": "^1.0.0",
     "@libpdf/core": "^0.5.1",
     "@primevue/themes": "^4.5.4",
