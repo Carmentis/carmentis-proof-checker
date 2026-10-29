@@ -26,6 +26,7 @@ import type {
     UnresolvedTag,
     Verdict,
 } from './types'
+import { TOKEN_CLAIMS } from './types'
 
 type Path = (string | number)[]
 
@@ -474,9 +475,6 @@ function findCertificates(key: string | number | null, value: unknown): Certific
     const views = candidates.map(toCertificateView)
     return views.every((v): v is CertificateView => v !== null) ? views : undefined
 }
-
-/** Registered and technical claims: they describe the token, not its subject. */
-const TOKEN_CLAIMS = new Set(['iss', 'sub', 'iat', 'nbf', 'exp', 'jti', 'vct', 'status', 'cnf', 'aud', 'nonce', '_sd', '_sd_alg'])
 
 function disclosedClaims(claims: Record<string, unknown>): DisclosedClaim[] {
     return Object.entries(claims)

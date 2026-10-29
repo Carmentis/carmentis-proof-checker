@@ -243,3 +243,20 @@ export const LEVEL_META: Record<
         icon: 'pi-times-circle',
     },
 }
+
+/** Registered and technical claims: they describe the token, not what it says about its subject. */
+export const TOKEN_CLAIMS = new Set([
+    'iss',
+    'sub',
+    'iat',
+    'nbf',
+    'exp',
+    'jti',
+    'vct',
+    'status',
+    'cnf',
+    'aud',
+    'nonce',
+    '_sd',
+    '_sd_alg',
+])
