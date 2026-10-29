@@ -50,7 +50,7 @@ const TYPE_TAG: Record<string, string> = {
     certificate: '__certificate__',
 }
 
-const MAX_MISMATCHES = 20
+const MAX_MISMATCHES = 200
 
 export interface AnalyzerInput {
     linkedJson: JsonObject

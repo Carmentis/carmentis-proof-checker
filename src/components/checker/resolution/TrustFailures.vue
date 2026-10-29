@@ -33,13 +33,23 @@
             <p class="mt-1 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
                 The values shown on this page are the ones recomputed here. The file claims something else at these locations.
             </p>
-            <ul class="mt-2 space-y-2">
+            <ul class="mt-2 max-h-96 space-y-2 overflow-y-auto">
                 <li
                     v-for="(item, i) in report.mismatches"
                     :key="i"
                     class="rounded-xl bg-white/70 p-3 text-sm dark:bg-gray-900/40"
                 >
-                    <code class="font-mono font-semibold text-gray-900 dark:text-gray-100">{{ formatPath(item.path) }}</code>
+                    <div class="flex items-center justify-between gap-2">
+                        <code class="font-mono font-semibold text-gray-900 dark:text-gray-100">{{ formatPath(item.path) }}</code>
+                        <button
+                            v-if="item.recomputed !== undefined"
+                            type="button"
+                            class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-red-700 hover:bg-red-100 dark:text-red-300 dark:hover:bg-red-900/30"
+                            @click="scrollToCard(mismatchId(item.path))"
+                        >
+                            Show in data <i class="pi pi-arrow-down text-[0.65rem]" aria-hidden="true"></i>
+                        </button>
+                    </div>
                     <p class="mt-1 break-all font-mono text-xs text-gray-600 dark:text-gray-400">
                         file claims: {{ show(item.claimed) }}
                     </p>
@@ -58,6 +68,7 @@
 
 <script setup lang="ts">
 import type { TrustReport } from '@/classes/trust/types'
+import { mismatchId, scrollToCard } from './partyContext'
 
 defineProps<{ report: TrustReport }>()
 

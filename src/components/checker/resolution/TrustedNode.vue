@@ -1,12 +1,29 @@
 <template>
     <!-- Leaf value -->
-    <div v-if="node.type === 'leaf'" class="py-1.5">
+    <div
+        v-if="node.type === 'leaf'"
+        :id="mismatch ? mismatchId(node.path) : undefined"
+        class="py-1.5"
+        :class="mismatch ? 'my-1 scroll-mt-24 rounded-lg bg-red-50 px-3 ring-1 ring-red-300 dark:bg-red-900/20 dark:ring-red-700/60' : ''"
+    >
         <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
             <div class="min-w-0 flex-1 text-sm">
-                <span v-if="node.key !== null" class="mr-2 font-mono font-semibold text-gray-900 dark:text-gray-100">
+                <i v-if="mismatch" class="pi pi-times-circle mr-1.5 text-red-600 dark:text-red-400" aria-hidden="true"></i>
+                <span
+                    v-if="node.key !== null"
+                    class="mr-2 font-mono font-semibold"
+                    :class="mismatch ? 'text-red-800 dark:text-red-300' : 'text-gray-900 dark:text-gray-100'"
+                >
                     {{ node.key }}
                 </span>
-                <span class="break-all font-mono text-gray-700 dark:text-gray-300">{{ display }}</span>
+                <span
+                    class="break-all font-mono"
+                    :class="mismatch ? 'font-semibold text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300'"
+                >{{ display }}</span>
+                <p v-if="mismatch" class="mt-1 text-xs text-red-700 dark:text-red-300">
+                    Does not match the file, which claims
+                    <code class="break-all font-mono font-semibold">{{ claimed }}</code>
+                </p>
             </div>
             <!-- Inside a card the card already states the confidence, so only show differences. -->
             <button
@@ -54,14 +71,21 @@
                 :class="{ 'rotate-90': expanded }"
                 aria-hidden="true"
             ></i>
-            <span class="font-mono font-semibold text-gray-900 dark:text-gray-100">{{ node.key }}</span>
+            <span
+                class="font-mono font-semibold"
+                :class="mismatch || mismatchInside ? 'text-red-700 dark:text-red-300' : 'text-gray-900 dark:text-gray-100'"
+            >{{ node.key }}</span>
+            <span v-if="mismatch || mismatchInside" class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                <i class="pi pi-times-circle text-[0.65rem]" aria-hidden="true"></i>
+                {{ mismatch ? 'Does not match the file' : 'Contains mismatches' }}
+            </span>
             <span class="text-xs text-gray-500">
                 {{ node.type === 'array' ? `${node.children.length} items` : `${node.children.length} fields` }}
             </span>
         </button>
         <div
             v-if="expanded"
-            :class="node.key !== null ? 'ml-1.5 border-l-2 border-gray-200 pl-4 dark:border-gray-700' : ''"
+            :class="node.key !== null ? ['ml-1.5 border-l-2 pl-4', mismatch || mismatchInside ? 'border-red-300 dark:border-red-700' : 'border-gray-200 dark:border-gray-700'] : ''"
         >
             <SegmentList :segments="node.segments" :parent-level="parentLevel" />
         </div>
@@ -74,9 +98,18 @@ import { LEVEL_META, type TrustLevel, type TrustTreeNode } from '@/classes/trust
 import { LEVEL_BADGE } from './levelStyles'
 import EvidenceCard from './EvidenceCard.vue'
 import SegmentList from './SegmentList.vue'
+import { mismatchId, pathKey, useMismatches } from './partyContext'
 import CertificateChainCard from './CertificateChainCard.vue'
 
 const props = defineProps<{ node: TrustTreeNode; parentLevel?: TrustLevel | null }>()
+
+const mismatches = useMismatches()
+const mismatch = computed(() => mismatches.value.exact.get(pathKey(props.node.path)))
+const mismatchInside = computed(() => mismatches.value.ancestors.has(pathKey(props.node.path)))
+const claimed = computed(() => {
+    const value = mismatch.value?.claimed
+    return value === undefined ? '(absent)' : JSON.stringify(value)
+})
 
 const open = ref(false)
 const expanded = ref(true)

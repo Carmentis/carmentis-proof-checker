@@ -1,5 +1,5 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
-import type { VbIdentity } from '@/classes/trust/types'
+import type { Mismatch, VbIdentity } from '@/classes/trust/types'
 
 const KEY: InjectionKey<Ref<string | null>> = Symbol('selectedParty')
 
@@ -38,6 +38,46 @@ export function providePartyNames() {
 
 export function usePartyNames() {
     return inject(NAMES_KEY, ref<Record<string, string>>({}))
+}
+
+interface MismatchIndex {
+    /** Mismatches by serialized path. */
+    exact: Map<string, Mismatch>
+    /** Every serialized path that has a mismatch somewhere below it. */
+    ancestors: Set<string>
+}
+
+const MISMATCH_KEY: InjectionKey<Ref<MismatchIndex>> = Symbol('mismatches')
+
+export function pathKey(path: (string | number)[]) {
+    return JSON.stringify(path)
+}
+
+/** DOM id of the highlighted value, so the problems list can scroll to it. */
+export function mismatchId(path: (string | number)[]) {
+    return `mismatch-${path.join('.')}`
+}
+
+/** Values whose recomputed content differs from what the proof file claims, to highlight in the tree. */
+export function provideMismatches() {
+    const index = ref<MismatchIndex>({ exact: new Map(), ancestors: new Set() })
+    provide(MISMATCH_KEY, index)
+    return {
+        index,
+        set(mismatches: Mismatch[]) {
+            const exact = new Map<string, Mismatch>()
+            const ancestors = new Set<string>()
+            for (const mismatch of mismatches) {
+                exact.set(pathKey(mismatch.path), mismatch)
+                for (let i = 0; i < mismatch.path.length; i++) ancestors.add(pathKey(mismatch.path.slice(0, i)))
+            }
+            index.value = { exact, ancestors }
+        },
+    }
+}
+
+export function useMismatches() {
+    return inject(MISMATCH_KEY, ref<MismatchIndex>({ exact: new Map(), ancestors: new Set() }))
 }
 
 export function scrollToCard(id: string) {

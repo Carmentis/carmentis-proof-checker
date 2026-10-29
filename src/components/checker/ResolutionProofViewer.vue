@@ -99,7 +99,7 @@ import TrustFailures from './resolution/TrustFailures.vue'
 import TrustedNode from './resolution/TrustedNode.vue'
 import { useResizablePanel } from '@/composables/useResizablePanel'
 import PartiesPanel from './resolution/PartiesPanel.vue'
-import { providePartyNames, provideSelectedParty, provideVbIdentities } from './resolution/partyContext'
+import { providePartyNames, provideMismatches, provideSelectedParty, provideVbIdentities } from './resolution/partyContext'
 
 const props = defineProps<{
     proof: ResolutionProofWrapper
@@ -112,6 +112,7 @@ const emit = defineEmits<{
 provideSelectedParty()
 const vbIdentities = provideVbIdentities()
 const partyNames = providePartyNames()
+const mismatchHighlights = provideMismatches()
 
 const panel = useResizablePanel({ storageKey: 'parties-panel-width', initial: 320, min: 240, max: 640 })
 
@@ -147,6 +148,7 @@ onMounted(async () => {
             provider,
         });
         vbIdentities.value = analyzed.vbIdentities;
+        mismatchHighlights.set(analyzed.mismatches);
         partyNames.value = Object.fromEntries(
             analyzed.parties.flatMap((party) => (party.name ? [[party.id, party.name]] : [])),
         );
