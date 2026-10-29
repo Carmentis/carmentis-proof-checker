@@ -20,6 +20,16 @@
                 <p class="mt-1 max-w-prose leading-relaxed text-gray-600 dark:text-gray-400">
                     {{ meta.description }}
                 </p>
+                <dl class="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Proof export time</dt>
+                        <dd class="font-medium text-gray-800 dark:text-gray-200">{{ exportedAt }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Chain ID</dt>
+                        <dd class="break-all font-mono text-gray-800 dark:text-gray-200">{{ chainId }}</dd>
+                    </div>
+                </dl>
             </div>
         </div>
 
@@ -72,7 +82,7 @@ import { computed } from 'vue'
 import { LEVEL_META, type TrustLevel, type TrustReport } from '@/classes/trust/types'
 import { LEVEL_BADGE, LEVEL_DOT, VERDICT_META } from './levelStyles'
 
-const props = defineProps<{ report: TrustReport }>()
+const props = defineProps<{ report: TrustReport; exportedAt: string; chainId: string }>()
 
 const levels: TrustLevel[] = ['onchain-signed', 'onchain', 'authenticated', 'untrusted', 'failed']
 const meta = computed(() => VERDICT_META[props.report.verdict])

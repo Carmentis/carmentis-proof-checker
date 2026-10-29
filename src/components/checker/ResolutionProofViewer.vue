@@ -35,29 +35,8 @@
             </button>
         </div>
 
-        <TrustSummary :report="report" />
+        <TrustSummary :report="report" :exported-at="exportedAt" :chain-id="chainId" />
         <TrustFailures v-if="report.unresolved.length || report.mismatches.length || report.counts.failed" :report="report" />
-
-        <div
-            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-        >
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 mb-1">Proof Export Time</p>
-                        <p class="font-medium text-gray-800 dark:text-gray-200">{{ exportedAt }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 mb-1">Chain ID</p>
-                        <p class="font-mono break-all text-gray-800 dark:text-gray-200">{{ chainId }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 mb-1">Author</p>
-                        <p class="font-medium text-gray-800 dark:text-gray-200">{{ author }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <div
             class="grid grid-cols-1 gap-6 lg:grid-cols-[var(--parties-width)_1.25rem_minmax(0,1fr)] lg:items-start lg:gap-0"
@@ -141,7 +120,6 @@ const errorMessage = ref<string | null>(null)
 const explorerUrl = ref("")
 const report = ref<TrustReport | null>(null)
 
-const author = ref('')
 const exportedAt = ref('')
 const chainId = ref('')
 
@@ -154,7 +132,6 @@ onMounted(async () => {
         );
 
         explorerUrl.value = Network.getExplorerUrl(chainId.value);
-        author.value = props.proof.getAuthor();
         exportedAt.value = props.proof.getDate().toLocaleString();
 
         const proof = props.proof.getObject().proof;
