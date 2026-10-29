@@ -1,5 +1,5 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
-import type { Mismatch, VbIdentity } from '@/classes/trust/types'
+import type { Mismatch, TrustCard, VbIdentity } from '@/classes/trust/types'
 
 const KEY: InjectionKey<Ref<string | null>> = Symbol('selectedParty')
 
@@ -78,6 +78,60 @@ export function provideMismatches() {
 
 export function useMismatches() {
     return inject(MISMATCH_KEY, ref<MismatchIndex>({ exact: new Map(), ancestors: new Set() }))
+}
+
+const FOCUS_KEY: InjectionKey<Ref<TrustCard | null>> = Symbol('focusedCard')
+
+/** The card the user clicked: the parties involved in it are brought to the top of the parties panel. */
+export function provideFocusedCard() {
+    const focused = ref<TrustCard | null>(null)
+    provide(FOCUS_KEY, focused)
+    return focused
+}
+
+export function useFocusedCard() {
+    return inject(FOCUS_KEY, ref<TrustCard | null>(null))
+}
+
+export interface PartyRoleInfo {
+    partyId: string
+    caption: string
+    description: string
+}
+
+/** Who played which part in a card, in reading order (issuer before holder). */
+export function rolesOfCard(card: TrustCard): PartyRoleInfo[] {
+    const roles: PartyRoleInfo[] = []
+    for (const evidence of card.evidence) {
+        const party = evidence.party
+        if (party?.role === 'issuer') {
+            roles.push({
+                partyId: party.id,
+                caption: 'Credential issuer',
+                description: 'Issued and signed this credential, vouching for the claims it contains.',
+            })
+        } else if (party?.role === 'signer') {
+            roles.push({
+                partyId: party.id,
+                caption: 'Signer',
+                description: 'Holds the key that produced this signature over the data below.',
+            })
+        } else if (party?.role === 'author') {
+            roles.push({
+                partyId: party.id,
+                caption: 'Microblock publisher',
+                description: 'Paid the fees to record this data on the blockchain.',
+            })
+        }
+        if (evidence.subject) {
+            roles.push({
+                partyId: evidence.subject,
+                caption: 'Credential holder',
+                description: 'The party this credential was issued to, and whose claims it discloses.',
+            })
+        }
+    }
+    return roles
 }
 
 export function scrollToCard(id: string) {

@@ -1,5 +1,5 @@
 <template>
-    <aside aria-labelledby="parties-title" class="space-y-3">
+    <aside ref="root" aria-labelledby="parties-title" class="space-y-3">
         <div>
             <h3 id="parties-title" class="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
                 Parties
@@ -16,8 +16,33 @@
             No signing or recording party was found in this proof.
         </p>
 
-        <ul class="space-y-3">
-            <li v-for="party in parties" :key="party.id">
+        <div
+            v-if="focused"
+            class="flex items-center justify-between gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-900 ring-1 ring-inset ring-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:ring-blue-800/60"
+        >
+            <span>Parties of <strong>{{ focused.evidence[0]?.title }}</strong></span>
+            <button
+                type="button"
+                class="inline-flex min-h-8 items-center rounded-lg px-2 font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                @click="focused = null"
+            >
+                Show all
+            </button>
+        </div>
+
+        <TransitionGroup tag="ul" name="party-list" class="space-y-3">
+            <li v-for="{ party, roles, firstOther } in entries" :key="party.id">
+                <p v-if="firstOther" class="mb-2 mt-1 px-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Other parties
+                </p>
+                <div v-if="roles.length" class="mb-1.5 space-y-1.5 px-1">
+                    <div v-for="role in roles" :key="role.caption">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                            {{ role.caption }}
+                        </p>
+                        <p class="text-xs leading-relaxed text-gray-600 dark:text-gray-400">{{ role.description }}</p>
+                    </div>
+                </div>
                 <div
                     class="rounded-2xl border bg-white p-4 transition-shadow motion-reduce:transition-none dark:bg-gray-800"
                     :class="
@@ -160,17 +185,17 @@
                     </details>
                 </div>
             </li>
-        </ul>
+        </TransitionGroup>
     </aside>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { Party, PartyRole, TrustLevel } from '@/classes/trust/types'
 import { LEVEL_DOT } from './levelStyles'
-import { scrollToCard, useSelectedParty } from './partyContext'
+import { rolesOfCard, scrollToCard, useFocusedCard, useSelectedParty, type PartyRoleInfo } from './partyContext'
 
-defineProps<{ parties: Party[] }>()
+const props = defineProps<{ parties: Party[] }>()
 
 const ROLE_LABEL = {
     signer: 'Signed',
@@ -180,6 +205,38 @@ const ROLE_LABEL = {
 } as const
 
 const selected = useSelectedParty()
+const focused = useFocusedCard()
+const root = ref<HTMLElement | null>(null)
+
+interface Entry {
+    party: Party
+    roles: PartyRoleInfo[]
+    firstOther: boolean
+}
+
+/** With a focused card, the parties it involves come first, each with the part it played. */
+const entries = computed<Entry[]>(() => {
+    if (!focused.value) return props.parties.map((party) => ({ party, roles: [], firstOther: false }))
+    const involved: Entry[] = []
+    for (const role of rolesOfCard(focused.value)) {
+        const party = props.parties.find((p) => p.id === role.partyId)
+        if (!party) continue
+        const existing = involved.find((e) => e.party.id === party.id)
+        if (existing) existing.roles.push(role)
+        else involved.push({ party, roles: [role], firstOther: false })
+    }
+    const others = props.parties
+        .filter((p) => !involved.some((e) => e.party.id === p.id))
+        .map((party, i) => ({ party, roles: [] as PartyRoleInfo[], firstOther: i === 0 && involved.length > 0 }))
+    return [...involved, ...others]
+})
+
+// The list scrolls inside its sticky column: bring the newly promoted parties into view.
+watch(focused, async () => {
+    await nextTick()
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    root.value?.parentElement?.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+})
 const copied = ref<string | null>(null)
 
 async function copy(value: string) {
@@ -293,3 +350,16 @@ function jump(party: Party, group: RoleGroup) {
     scrollToCard(group.cardIds[index % group.cardIds.length]!)
 }
 </script>
+
+<style scoped>
+/* Parties slide to their new place instead of jumping when the focus changes. */
+.party-list-move {
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .party-list-move {
+        transition: none;
+    }
+}
+</style>

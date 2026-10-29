@@ -1,12 +1,18 @@
 <template>
     <article
         :id="card.id"
-        class="my-2 overflow-hidden rounded-2xl border bg-white transition-shadow motion-reduce:transition-none dark:bg-gray-800"
+        class="my-2 overflow-hidden rounded-2xl border bg-white transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 motion-reduce:transition-none dark:bg-gray-800"
         :class="[
-            highlighted
+            highlighted || isFocused
                 ? 'border-blue-500 shadow-md ring-2 ring-blue-500/40'
                 : 'border-gray-200 shadow-sm dark:border-gray-700',
+            roles.length ? 'cursor-pointer' : '',
         ]"
+        :tabindex="roles.length ? 0 : undefined"
+        :aria-pressed="roles.length ? isFocused : undefined"
+        @click="onCardClick"
+        @keydown.enter.self.prevent="toggleFocus"
+        @keydown.space.self.prevent="toggleFocus"
     >
         <header class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pt-3 pb-2">
             <div class="flex min-w-0 items-start gap-3">
@@ -132,7 +138,7 @@
 import { computed, ref } from 'vue'
 import { LEVEL_META, type EvidenceKind, type TrustCard } from '@/classes/trust/types'
 import { LEVEL_BADGE } from './levelStyles'
-import { usePartyNames, useSelectedParty } from './partyContext'
+import { rolesOfCard, useFocusedCard, usePartyNames, useSelectedParty } from './partyContext'
 import EvidenceCard from './EvidenceCard.vue'
 
 const props = defineProps<{ card: TrustCard }>()
@@ -164,6 +170,22 @@ const names = usePartyNames()
 const primary = computed(() => props.card.evidence[0]!)
 const parties = computed(() => props.card.evidence.flatMap((e) => (e.party ? [e.party] : [])))
 const subject = computed(() => props.card.evidence.find((e) => e.subject)?.subject)
+const focused = useFocusedCard()
+const roles = computed(() => rolesOfCard(props.card))
+const isFocused = computed(() => focused.value?.id === props.card.id)
+
+function toggleFocus() {
+    if (roles.value.length) focused.value = isFocused.value ? null : props.card
+}
+
+/** Clicking the card (not one of its controls) focuses it; the innermost card handles the click. */
+function onCardClick(event: MouseEvent) {
+    if ((event.target as HTMLElement).closest('button, a, summary, input')) return
+    if (!roles.value.length) return
+    event.stopPropagation()
+    toggleFocus()
+}
+
 const highlighted = computed(
     () =>
         selected.value !== null &&
